@@ -1,0 +1,26 @@
+# ---- Android / Gradle ----
+.gradle/
+**/.gradle/
+**/build/
+**/out/
+**/.idea/
+**/*.iml
+**/.DS_Store
+**/local.properties
+**/captures/
+**/.externalNativeBuild/
+**/.cxx/
+
+# ---- Kotlin / Java ----
+**/*.class
+**/.kotlin/
+
+# ---- Logs ----
+**/*.log
+
+# ---- Backend Maven ----
+backend/backend/target/
+backend/backend/.mvn/wrapper/maven-wrapper.jar
+
+# ---- Env / secrets ----
+**/.env
