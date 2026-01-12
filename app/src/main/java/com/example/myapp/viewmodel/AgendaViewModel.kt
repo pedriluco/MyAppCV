@@ -1,35 +1,66 @@
 package com.example.myapp.viewmodel
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.myapp.data.model.AppointmentResponse
 import com.example.myapp.network.ApiClient
+import com.example.myapp.network.AppointmentDto
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+
+data class AgendaUiState(
+    val loading: Boolean = false,
+    val saving: Boolean = false,
+    val error: String? = null,
+    val items: List<AppointmentDto> = emptyList()
+)
 
 class AgendaViewModel : ViewModel() {
 
-    var isLoading by mutableStateOf(false)
-        private set
+    private val _state = MutableStateFlow(AgendaUiState())
+    val state = _state.asStateFlow()
 
-    var error by mutableStateOf<String?>(null)
-        private set
-
-    var appointments by mutableStateOf<List<AppointmentResponse>>(emptyList())
-        private set
-
-    fun loadAppointments(tenantId: Long) {
+    fun load(tenantId: Long) {
         viewModelScope.launch {
-            isLoading = true
-            error = null
-            try {
-                appointments = ApiClient.appointmentApi.getAppointments(tenantId)
-            } catch (e: Exception) {
-                error = e.message ?: "Error cargando agenda"
-            } finally {
-                isLoading = false
+            _state.value = _state.value.copy(loading = true, error = null)
+            runCatching {
+                ApiClient.appointmentApi.list(tenantId)
+            }.onSuccess {
+                _state.value = AgendaUiState(items = it)
+            }.onFailure { e ->
+                _state.value = AgendaUiState(error = e.message ?: "Error")
+            }
+        }
+    }
+
+    fun approve(tenantId: Long, id: Long) {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(saving = true)
+            runCatching {
+                ApiClient.appointmentApi.approve(tenantId, id)
+            }.onSuccess {
+                load(tenantId)
+            }.onFailure { e ->
+                _state.value = _state.value.copy(
+                    saving = false,
+                    error = e.message ?: "Error"
+                )
+            }
+        }
+    }
+
+    fun reject(tenantId: Long, id: Long) {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(saving = true)
+            runCatching {
+                ApiClient.appointmentApi.reject(tenantId, id)
+            }.onSuccess {
+                load(tenantId)
+            }.onFailure { e ->
+                _state.value = _state.value.copy(
+                    saving = false,
+                    error = e.message ?: "Error"
+                )
             }
         }
     }

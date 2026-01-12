@@ -1,8 +1,7 @@
-package com.myapp.backend.appointments;
+package com.myapp.backend.appointments.entity;
 
 import jakarta.persistence.*;
-import java.time.LocalDate;
-import java.time.LocalTime;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "appointments")
@@ -22,31 +21,31 @@ public class Appointment {
     private String clientName;
 
     @Column(nullable = false)
-    private LocalDate date;
+    private LocalDateTime startAt;
 
     @Column(nullable = false)
-    private LocalTime time;
+    private LocalDateTime endAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private AppointmentStatus status = AppointmentStatus.REQUESTED;
 
     public Appointment() {}
 
-    public Appointment(Long tenantId, Long serviceId, String clientName, LocalDate date, LocalTime time) {
-        this.tenantId = tenantId;
-        this.serviceId = serviceId;
-        this.clientName = clientName;
-        this.date = date;
-        this.time = time;
-    }
-
+    // getters
     public Long getId() { return id; }
     public Long getTenantId() { return tenantId; }
     public Long getServiceId() { return serviceId; }
     public String getClientName() { return clientName; }
-    public LocalDate getDate() { return date; }
-    public LocalTime getTime() { return time; }
+    public LocalDateTime getStartAt() { return startAt; }
+    public LocalDateTime getEndAt() { return endAt; }
+    public AppointmentStatus getStatus() { return status; }
 
+    // setters
     public void setTenantId(Long tenantId) { this.tenantId = tenantId; }
     public void setServiceId(Long serviceId) { this.serviceId = serviceId; }
     public void setClientName(String clientName) { this.clientName = clientName; }
-    public void setDate(LocalDate date) { this.date = date; }
-    public void setTime(LocalTime time) { this.time = time; }
+    public void setStartAt(LocalDateTime startAt) { this.startAt = startAt; }
+    public void setEndAt(LocalDateTime endAt) { this.endAt = endAt; }
+    public void setStatus(AppointmentStatus status) { this.status = status; }
 }

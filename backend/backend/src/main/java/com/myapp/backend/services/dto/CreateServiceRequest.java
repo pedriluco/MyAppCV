@@ -1,7 +1,6 @@
 package com.myapp.backend.services.dto;
 
-public record CreateServiceRequest(
-        Long tenantId,
-        String name,
-        Integer durationMinutes
-) {}
+public class CreateServiceRequest {
+    public String name;
+    public Integer durationMinutes;
+}

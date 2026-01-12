@@ -1,19 +1,28 @@
 package com.myapp.backend.appointments.dto;
 
 public class AppointmentResponse {
-    public Long id;
-    public Long tenantId;
-    public Long serviceId;
-    public String clientName;
-    public String date; // "2026-01-15"
-    public String time; // "16:00"
+    private Long id;
+    private Long tenantId;
+    private Long serviceId;
+    private String clientName;
+    private String startAt;
+    private String endAt;
 
-    public AppointmentResponse(Long id, Long tenantId, Long serviceId, String clientName, String date, String time) {
+    public AppointmentResponse(Long id, Long tenantId, Long serviceId, String clientName, String startAt, String endAt) {
         this.id = id;
         this.tenantId = tenantId;
         this.serviceId = serviceId;
         this.clientName = clientName;
-        this.date = date;
-        this.time = time;
+        this.startAt = startAt;
+        this.endAt = endAt;
     }
+
+    public Long getId() { return id; }
+    public Long getTenantId() { return tenantId; }
+    public Long getServiceId() { return serviceId; }
+    public String getClientName() { return clientName; }
+    public String getStartAt() { return startAt; }
+    public String getEndAt() { return endAt; }
 }
+
+

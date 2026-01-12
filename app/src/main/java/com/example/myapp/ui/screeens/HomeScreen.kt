@@ -8,11 +8,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.myapp.viewmodel.AuthViewModel
 import com.example.myapp.viewmodel.TenantViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    authVm: AuthViewModel,
+    onLogout: () -> Unit,
     onGoToCreate: () -> Unit,
     onGoToAgenda: (Long) -> Unit,
     onGoToCreateAppointment: (Long) -> Unit,
@@ -30,7 +33,16 @@ fun HomeScreen(
             TopAppBar(
                 title = { Text("Buscar negocios") },
                 actions = {
-                    TextButton(onClick = onGoToCreate) { Text("Crear") }
+                    if (authVm.isOwnerOrAdmin()) {
+                        TextButton(onClick = onGoToCreate) { Text("Crear") }
+                        Spacer(Modifier.width(8.dp))
+                    }
+                    Button(onClick = {
+                        authVm.logout()
+                        onLogout()
+                    }) {
+                        Text("Logout")
+                    }
                 }
             )
         }
@@ -88,15 +100,28 @@ fun HomeScreen(
                             ) {
                                 Text(tenant.name)
 
-                                TextButton(
-                                    onClick = {
-                                        val id = tenant.id ?: return@TextButton
-                                        onGoToCreateAppointment(id)
+                                Row {
+                                    if (authVm.isOwnerOrAdmin()) {
+                                        TextButton(
+                                            onClick = {
+                                                val id = tenant.id ?: return@TextButton
+                                                onGoToAgenda(id)
+                                            }
+                                        ) {
+                                            Text("Agenda")
+                                        }
+                                        Spacer(Modifier.width(8.dp))
                                     }
-                                ) {
-                                    Text("Agendar")
-                                }
 
+                                    TextButton(
+                                        onClick = {
+                                            val id = tenant.id ?: return@TextButton
+                                            onGoToCreateAppointment(id)
+                                        }
+                                    ) {
+                                        Text("Agendar")
+                                    }
+                                }
                             }
                         }
                     }
