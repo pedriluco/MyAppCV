@@ -20,32 +20,43 @@ class BusinessHoursViewModel : ViewModel() {
     private val _state = MutableStateFlow(HoursUiState())
     val state = _state.asStateFlow()
 
+    private fun setState(reducer: (HoursUiState) -> HoursUiState) {
+        _state.value = reducer(_state.value)
+    }
+
     fun load(tenantId: Long) {
         viewModelScope.launch {
-            _state.value = _state.value.copy(loading = true, error = null)
-            runCatching {
-                ApiClient.hoursApi.getAll(tenantId)
-            }.onSuccess {
-                _state.value = HoursUiState(items = it)
-            }.onFailure { e ->
-                _state.value = HoursUiState(error = e.message ?: "Error")
-            }
+            setState { it.copy(loading = true, error = null) }
+
+            runCatching { ApiClient.hoursApi.getAll(tenantId) }
+                .onSuccess { items ->
+                    _state.value = HoursUiState(items = items)
+                }
+                .onFailure { e ->
+                    _state.value = HoursUiState(error = e.message ?: "Error")
+                }
         }
     }
 
     fun update(items: List<BusinessHoursDto>) {
-        _state.value = _state.value.copy(items = items)
+        setState { it.copy(items = items) }
     }
 
-    fun save(tenantId: Long) {
+    fun saveAndReload(tenantId: Long) {
         viewModelScope.launch {
-            _state.value = _state.value.copy(saving = true, error = null)
+            setState { it.copy(saving = true, error = null) }
+
             runCatching {
-                ApiClient.hoursApi.saveAll(tenantId, _state.value.items)
-            }.onSuccess {
-                _state.value = _state.value.copy(saving = false)
+                val cleaned = _state.value.items.map { h ->
+                    if (h.closed) h.copy(openTime = null, closeTime = null) else h
+                }
+
+                ApiClient.hoursApi.saveAll(tenantId, cleaned)
+                ApiClient.hoursApi.getAll(tenantId)
+            }.onSuccess { fresh ->
+                _state.value = HoursUiState(items = fresh)
             }.onFailure { e ->
-                _state.value = _state.value.copy(saving = false, error = e.message ?: "Error")
+                setState { it.copy(saving = false, error = e.message ?: "Error") }
             }
         }
     }

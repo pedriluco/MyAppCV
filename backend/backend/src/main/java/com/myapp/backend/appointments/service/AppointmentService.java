@@ -1,5 +1,6 @@
 package com.myapp.backend.appointments.service;
 
+import com.myapp.backend.appointments.dto.AppointmentResponse;
 import com.myapp.backend.appointments.dto.CreateAppointmentRequest;
 import com.myapp.backend.appointments.entity.Appointment;
 import com.myapp.backend.appointments.entity.AppointmentStatus;
@@ -38,7 +39,7 @@ public class AppointmentService {
         this.tenantRepo = tenantRepo;
     }
 
-    public Appointment create(Long tenantId, CreateAppointmentRequest req) {
+    public AppointmentResponse create(Long tenantId, CreateAppointmentRequest req) {
         authz.requireTenantAccess(tenantId);
 
         var service = businessServiceRepo
@@ -46,7 +47,9 @@ public class AppointmentService {
                 .orElseThrow(() -> new RuntimeException("Service not found for this business"));
 
         int duration = service.getDurationMinutes();
-        if (duration <= 0) throw new RuntimeException("Service durationMinutes must be > 0");
+        if (duration <= 0) {
+            throw new RuntimeException("Service durationMinutes must be > 0");
+        }
 
         LocalDate date = LocalDate.parse(req.getDate());
         LocalTime time = LocalTime.parse(req.getTime());
@@ -54,7 +57,9 @@ public class AppointmentService {
         LocalDateTime endAt = startAt.plusMinutes(duration);
 
         BusinessHours h = businessHoursService.getForDateOrThrow(tenantId, date);
-        if (Boolean.TRUE.equals(h.getClosed())) throw new RuntimeException("Business closed that day");
+        if (Boolean.TRUE.equals(h.getClosed())) {
+            throw new RuntimeException("Business closed that day");
+        }
 
         LocalTime open = LocalTime.parse(h.getOpenTime());
         LocalTime close = LocalTime.parse(h.getCloseTime());
@@ -66,13 +71,16 @@ public class AppointmentService {
             throw new RuntimeException("Outside business hours (after close)");
         }
 
-        boolean overlap = appointmentRepo.existsByTenantIdAndStatusAndStartAtLessThanAndEndAtGreaterThan(
-                tenantId,
-                AppointmentStatus.APPROVED,
-                endAt,
-                startAt
-        );
-        if (overlap) throw new RuntimeException("Overlaps with an approved appointment");
+        boolean overlap = appointmentRepo
+                .existsByTenantIdAndStatusAndStartAtLessThanAndEndAtGreaterThan(
+                        tenantId,
+                        AppointmentStatus.APPROVED,
+                        endAt,
+                        startAt
+                );
+        if (overlap) {
+            throw new RuntimeException("Overlaps with an approved appointment");
+        }
 
         Appointment a = new Appointment();
         a.setTenantId(tenantId);
@@ -82,10 +90,10 @@ public class AppointmentService {
         a.setEndAt(endAt);
         a.setStatus(AppointmentStatus.REQUESTED);
 
-        return appointmentRepo.save(a);
+        return toResponse(appointmentRepo.save(a));
     }
 
-    public Appointment approve(Long tenantId, Long appointmentId, Long userId) {
+    public AppointmentResponse approve(Long tenantId, Long appointmentId, Long userId) {
         authz.assertOwnerOrAdmin(userId, tenantId);
 
         Appointment a = appointmentRepo.findByIdAndTenantId(appointmentId, tenantId)
@@ -95,19 +103,22 @@ public class AppointmentService {
             throw new RuntimeException("Only REQUESTED appointments can be approved");
         }
 
-        boolean overlap = appointmentRepo.existsByTenantIdAndStatusAndStartAtLessThanAndEndAtGreaterThan(
-                tenantId,
-                AppointmentStatus.APPROVED,
-                a.getEndAt(),
-                a.getStartAt()
-        );
-        if (overlap) throw new RuntimeException("Overlaps with an approved appointment");
+        boolean overlap = appointmentRepo
+                .existsByTenantIdAndStatusAndStartAtLessThanAndEndAtGreaterThan(
+                        tenantId,
+                        AppointmentStatus.APPROVED,
+                        a.getEndAt(),
+                        a.getStartAt()
+                );
+        if (overlap) {
+            throw new RuntimeException("Overlaps with an approved appointment");
+        }
 
         a.setStatus(AppointmentStatus.APPROVED);
-        return appointmentRepo.save(a);
+        return toResponse(appointmentRepo.save(a));
     }
 
-    public Appointment reject(Long tenantId, Long appointmentId, Long userId) {
+    public AppointmentResponse reject(Long tenantId, Long appointmentId, Long userId) {
         authz.assertOwnerOrAdmin(userId, tenantId);
 
         Appointment a = appointmentRepo.findByIdAndTenantId(appointmentId, tenantId)
@@ -118,6 +129,17 @@ public class AppointmentService {
         }
 
         a.setStatus(AppointmentStatus.REJECTED);
-        return appointmentRepo.save(a);
+        return toResponse(appointmentRepo.save(a));
+    }
+
+    private AppointmentResponse toResponse(Appointment a) {
+        return new AppointmentResponse(
+                a.getId(),
+                a.getTenantId(),
+                a.getServiceId(),
+                a.getClientName(),
+                a.getStartAt().toString(),
+                a.getEndAt().toString()
+        );
     }
 }

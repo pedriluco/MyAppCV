@@ -1,8 +1,11 @@
 package com.example.myapp.network
 
+import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
+import com.example.myapp.network.CreateAppointmentRequest
+
 
 data class AppointmentDto(
     val id: Long,
@@ -17,7 +20,15 @@ data class AppointmentDto(
 interface AppointmentApi {
 
     @GET("businesses/{tenantId}/appointments")
-    suspend fun list(@Path("tenantId") tenantId: Long): List<AppointmentDto>
+    suspend fun list(
+        @Path("tenantId") tenantId: Long
+    ): List<AppointmentDto>
+
+    @POST("businesses/{tenantId}/appointments")
+    suspend fun create(
+        @Path("tenantId") tenantId: Long,
+        @Body req: CreateAppointmentRequest
+    ): AppointmentDto
 
     @POST("businesses/{tenantId}/appointments/{id}/approve")
     suspend fun approve(

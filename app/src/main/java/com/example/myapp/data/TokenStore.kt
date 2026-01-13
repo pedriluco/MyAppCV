@@ -1,31 +1,24 @@
 package com.example.myapp.data
 
 import android.content.Context
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
-import kotlinx.coroutines.flow.first
-
-private val Context.dataStore by preferencesDataStore(name = "auth")
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class TokenStore(private val context: Context) {
 
-    private val TOKEN_KEY = stringPreferencesKey("jwt_token")
-
-    suspend fun saveToken(token: String) {
-        context.dataStore.edit { prefs ->
-            prefs[TOKEN_KEY] = token
-        }
+    private val prefs by lazy {
+        context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
     }
 
-    suspend fun getToken(): String? {
-        val prefs = context.dataStore.data.first()
-        return prefs[TOKEN_KEY]
+    suspend fun saveToken(token: String) = withContext(Dispatchers.IO) {
+        prefs.edit().putString("jwt", token).apply()
     }
 
-    suspend fun clear() {
-        context.dataStore.edit { prefs ->
-            prefs.remove(TOKEN_KEY)
-        }
+    suspend fun getToken(): String? = withContext(Dispatchers.IO) {
+        prefs.getString("jwt", null)
+    }
+
+    suspend fun clear() = withContext(Dispatchers.IO) {
+        prefs.edit().remove("jwt").apply()
     }
 }

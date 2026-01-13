@@ -24,14 +24,39 @@ public class BusinessService {
 
     public BusinessService() {}
 
-    public Long getId() { return id; }
-    public Long getTenantId() { return tenantId; }
-    public String getName() { return name; }
-    public Integer getDurationMinutes() { return durationMinutes; }
-    public Boolean getActive() { return active; }
+    public Long getId() {
+        return id;
+    }
 
-    public void setTenantId(Long tenantId) { this.tenantId = tenantId; }
-    public void setName(String name) { this.name = name; }
-    public void setDurationMinutes(Integer durationMinutes) { this.durationMinutes = durationMinutes; }
-    public void setActive(Boolean active) { this.active = active; }
+    public Long getTenantId() {
+        return tenantId;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public Integer getDurationMinutes() {
+        return durationMinutes;
+    }
+
+    public Boolean getActive() {
+        return active;
+    }
+
+    public void setTenantId(Long tenantId) {
+        this.tenantId = tenantId;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setDurationMinutes(Integer durationMinutes) {
+        this.durationMinutes = durationMinutes;
+    }
+
+    public void setActive(Boolean active) {
+        this.active = active;
+    }
 }

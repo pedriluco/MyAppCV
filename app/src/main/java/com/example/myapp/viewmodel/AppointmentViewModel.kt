@@ -2,38 +2,21 @@ package com.example.myapp.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.myapp.data.model.AppointmentResponse
-import com.example.myapp.data.model.CreateAppointmentRequest
-import com.example.myapp.data.repository.AppointmentRepository
+import com.example.myapp.network.ApiClient
+import com.example.myapp.network.CreateAppointmentRequest
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 data class AppointmentUiState(
     val isLoading: Boolean = false,
-    val appointments: List<AppointmentResponse> = emptyList(),
     val error: String? = null
 )
 
-class AppointmentViewModel(
-    private val repo: AppointmentRepository = AppointmentRepository()
-) : ViewModel() {
+class AppointmentViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(AppointmentUiState())
-    val uiState: StateFlow<AppointmentUiState> = _uiState.asStateFlow()
-
-    fun loadAppointments(tenantId: Long) {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            try {
-                val list = repo.getAppointments(tenantId)
-                _uiState.value = _uiState.value.copy(isLoading = false, appointments = list)
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(isLoading = false, error = e.message)
-            }
-        }
-    }
+    val uiState = _uiState.asStateFlow()
 
     fun createAppointment(
         tenantId: Long,
@@ -41,28 +24,30 @@ class AppointmentViewModel(
         clientName: String,
         date: String,
         time: String,
-        onSuccess: () -> Unit = {}
+        onSuccess: () -> Unit
     ) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            try {
-                repo.createAppointment(
+            _uiState.value = AppointmentUiState(isLoading = true, error = null)
+
+            val startAtIso = "${date.trim()}T${time.trim()}:00"
+
+            runCatching {
+                ApiClient.appointmentApi.create(
+                    tenantId,
                     CreateAppointmentRequest(
-                        tenantId = tenantId,
                         serviceId = serviceId,
-                        clientName = clientName,
-                        date = date,
-                        time = time
+                        clientName = clientName.trim(),
+                        startAt = startAtIso
                     )
                 )
-
-                // refresca lista para que Agenda lo vea luego
-                val list = repo.getAppointments(tenantId)
-                _uiState.value = _uiState.value.copy(isLoading = false, appointments = list)
-
+            }.onSuccess {
+                _uiState.value = AppointmentUiState(isLoading = false, error = null)
                 onSuccess()
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(isLoading = false, error = e.message)
+            }.onFailure { e ->
+                _uiState.value = AppointmentUiState(
+                    isLoading = false,
+                    error = e.message ?: "Error"
+                )
             }
         }
     }

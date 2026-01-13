@@ -44,5 +44,6 @@ object ApiClient {
     val tenantApi: TenantApi by lazy { retrofit.create(TenantApi::class.java) }
     val appointmentApi: AppointmentApi by lazy { retrofit.create(AppointmentApi::class.java) }
     val serviceApi: ServiceApi by lazy { retrofit.create(ServiceApi::class.java) }
+    val hoursApi: BusinessHoursApi = retrofit.create(BusinessHoursApi::class.java)
 
 }

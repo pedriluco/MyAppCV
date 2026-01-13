@@ -1,14 +1,18 @@
 package com.example.myapp.data.repository
 
-import com.example.myapp.data.model.CreateAppointmentRequest
-import com.example.myapp.data.model.AppointmentResponse
 import com.example.myapp.network.ApiClient
+import com.example.myapp.network.AppointmentDto
 
 class AppointmentRepository {
 
-    suspend fun getAppointments(tenantId: Long): List<AppointmentResponse> =
-        ApiClient.appointmentApi.getAppointments(tenantId)
+    suspend fun list(tenantId: Long): List<AppointmentDto> =
+        ApiClient.appointmentApi.list(tenantId)
 
-    suspend fun createAppointment(req: CreateAppointmentRequest): AppointmentResponse =
-        ApiClient.appointmentApi.createAppointment(req)
+    suspend fun approve(tenantId: Long, id: Long) {
+        ApiClient.appointmentApi.approve(tenantId, id)
+    }
+
+    suspend fun reject(tenantId: Long, id: Long) {
+        ApiClient.appointmentApi.reject(tenantId, id)
+    }
 }

@@ -6,9 +6,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.myapp.viewmodel.AppointmentViewModel // <- AJUSTA ESTE IMPORT A TU RUTA REAL
+import com.example.myapp.viewmodel.AppointmentViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -18,22 +19,17 @@ fun CreateAppointmentScreen(
     onGoToAgenda: (Long) -> Unit,
     appointmentViewModel: AppointmentViewModel = viewModel()
 ) {
-    // ✅ si tu VM expone uiState como StateFlow/LiveData, esto lo resuelve
-    // Si tu uiState NO es StateFlow, dime cómo lo tienes y lo adapto.
     val uiState by appointmentViewModel.uiState.collectAsState()
 
     var clientName by remember { mutableStateOf("") }
-    var date by remember { mutableStateOf("2026-01-15") }
-    var time by remember { mutableStateOf("16:00") }
-    var serviceIdText by remember { mutableStateOf("1") }
+    var date by remember { mutableStateOf("") }     // YYYY-MM-DD
+    var time by remember { mutableStateOf("") }     // HH:mm
+    var serviceIdText by remember { mutableStateOf("") }
 
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // ✅ errores como snackbar (opcional)
     LaunchedEffect(uiState.error) {
-        uiState.error?.let { msg ->
-            snackbarHostState.showSnackbar(msg)
-        }
+        uiState.error?.let { snackbarHostState.showSnackbar(it) }
     }
 
     Scaffold(
@@ -43,13 +39,12 @@ fun CreateAppointmentScreen(
                 title = { Text("Agendar cita") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
         }
     ) { padding ->
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -62,52 +57,62 @@ fun CreateAppointmentScreen(
                 value = clientName,
                 onValueChange = { clientName = it },
                 label = { Text("Cliente") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
             )
 
             OutlinedTextField(
                 value = date,
                 onValueChange = { date = it },
                 label = { Text("Fecha (YYYY-MM-DD)") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
             )
 
             OutlinedTextField(
                 value = time,
                 onValueChange = { time = it },
                 label = { Text("Hora (HH:mm)") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
             )
 
             OutlinedTextField(
                 value = serviceIdText,
-                onValueChange = { serviceIdText = it },
+                onValueChange = { serviceIdText = it.filter { ch -> ch.isDigit() } },
                 label = { Text("Service ID") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
             )
+
+            val canSubmit =
+                clientName.isNotBlank() &&
+                        date.isNotBlank() &&
+                        time.isNotBlank() &&
+                        serviceIdText.toLongOrNull() != null &&
+                        !uiState.isLoading
 
             Button(
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !uiState.isLoading,
+                enabled = canSubmit,
                 onClick = {
-                    val serviceId = serviceIdText.toLongOrNull() ?: 1L
+                    val serviceId = serviceIdText.toLongOrNull() ?: return@Button
 
-                    if (clientName.isNotBlank() && date.isNotBlank() && time.isNotBlank()) {
-                        appointmentViewModel.createAppointment(
-                            tenantId = tenantId,
-                            serviceId = serviceId,
-                            clientName = clientName,
-                            date = date,
-                            time = time,
-                            onSuccess = {
-                                onGoToAgenda(tenantId) // ✅ aquí navega a agenda
-                            }
-                        )
-                    }
+                    appointmentViewModel.createAppointment(
+                        tenantId = tenantId,
+                        serviceId = serviceId,
+                        clientName = clientName.trim(),
+                        date = date.trim(),
+                        time = time.trim(),
+                        onSuccess = { onGoToAgenda(tenantId) }
+                    )
                 }
             ) {
                 if (uiState.isLoading) {
-                    CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                    CircularProgressIndicator(
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(18.dp)
+                    )
                     Spacer(Modifier.width(8.dp))
                     Text("Guardando…")
                 } else {
