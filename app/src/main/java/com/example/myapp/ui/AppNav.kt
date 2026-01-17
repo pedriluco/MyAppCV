@@ -2,7 +2,10 @@ package com.example.myapp.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -10,8 +13,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.myapp.data.TokenStore
+import com.example.myapp.data.repository.AuthRepository
 import com.example.myapp.ui.screens.*
 import com.example.myapp.viewmodel.AuthViewModel
+import com.example.myapp.viewmodel.AuthViewModelFactory
 import com.example.myapp.viewmodel.TenantViewModel
 import kotlinx.coroutines.launch
 
@@ -33,17 +38,31 @@ object Routes {
 
 @Composable
 fun AppNav(
-    tokenStore: TokenStore,
-    authVm: AuthViewModel = viewModel(),
-    tenantVm: TenantViewModel = viewModel()
+    tokenStore: TokenStore
 ) {
     val nav = rememberNavController()
     val scope = rememberCoroutineScope()
 
-    // Si ya hay token, manda a Home
+    val context = LocalContext.current
+
+    val authVm: AuthViewModel = viewModel(
+        factory = AuthViewModelFactory(
+            AuthRepository(
+                TokenStore(context)
+            )
+        )
+    )
+
+    val tenantVm: TenantViewModel = viewModel()
+
+    val authState by authVm.state.collectAsState()
+
     LaunchedEffect(Unit) {
-        val token = tokenStore.getToken()
-        if (!token.isNullOrBlank()) {
+        authVm.loadToken()
+    }
+
+    LaunchedEffect(authState.checkedToken, authState.loggedIn) {
+        if (authState.checkedToken && authState.loggedIn) {
             nav.navigate(Routes.HOME) {
                 popUpTo(Routes.LOGIN) { inclusive = true }
                 launchSingleTop = true
@@ -67,14 +86,13 @@ fun AppNav(
                 }
             )
         }
-
         composable(Routes.HOME) {
             HomeScreen(
                 authVm = authVm,
                 tenantViewModel = tenantVm,
                 onLogout = {
                     scope.launch {
-                        tokenStore.clear()
+                        authVm.logout()
                         nav.navigate(Routes.LOGIN) {
                             popUpTo(0) { inclusive = true }
                             launchSingleTop = true
@@ -83,9 +101,21 @@ fun AppNav(
                 },
                 onGoToCreate = { nav.navigate(Routes.CREATE_BUSINESS) },
                 onGoToAgenda = { tenantId -> nav.navigate(Routes.agenda(tenantId)) },
-                onGoToCreateAppointment = { tenantId -> nav.navigate(Routes.createAppointment(tenantId)) }
+                onGoToCreateAppointment = { tenantId ->
+                    nav.navigate(Routes.createAppointment(tenantId))
+                },
+                onGoToServices = { tenantId ->
+                    nav.navigate(Routes.services(tenantId))
+                },
+                onGoToHours = { tenantId ->
+                    nav.navigate(Routes.hours(tenantId))
+                },
+                onGoToAdminRequests = {
+                    // luego lo conectamos
+                }
             )
         }
+
 
         composable(Routes.CREATE_BUSINESS) {
             CreateBusinessScreen(

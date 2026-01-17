@@ -19,10 +19,16 @@ fun HomeScreen(
     onGoToCreate: () -> Unit,
     onGoToAgenda: (Long) -> Unit,
     onGoToCreateAppointment: (Long) -> Unit,
+    onGoToServices: (Long) -> Unit,
+    onGoToHours: (Long) -> Unit,
+    onGoToAdminRequests: () -> Unit,
     tenantViewModel: TenantViewModel = viewModel()
 ) {
     var query by remember { mutableStateOf("") }
     val uiState by tenantViewModel.uiState.collectAsState()
+
+    val isAdmin = authVm.isAdmin()
+    val isOwnerOrAdmin = authVm.isOwnerOrAdmin()
 
     LaunchedEffect(Unit) {
         tenantViewModel.loadAllTenants()
@@ -31,17 +37,23 @@ fun HomeScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Buscar negocios") },
+                title = { Text("Negocios") },
                 actions = {
-                    if (authVm.isOwnerOrAdmin()) {
-                        TextButton(onClick = onGoToCreate) { Text("Crear") }
+                    if (isAdmin) {
+                        TextButton(onClick = onGoToAdminRequests) { Text("Solicitudes") }
                         Spacer(Modifier.width(8.dp))
                     }
-                    Button(onClick = {
+
+                    if (isOwnerOrAdmin) {
+                        TextButton(onClick = onGoToCreate) { Text("Crear negocio") }
+                        Spacer(Modifier.width(8.dp))
+                    }
+
+                    TextButton(onClick = {
                         authVm.logout()
                         onLogout()
                     }) {
-                        Text("Logout")
+                        Text("Salir")
                     }
                 }
             )
@@ -60,7 +72,7 @@ fun HomeScreen(
                     query = it
                     tenantViewModel.search(query)
                 },
-                label = { Text("Busca por nombre") },
+                label = { Text("Buscar por nombre") },
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -76,51 +88,55 @@ fun HomeScreen(
                 Spacer(Modifier.height(12.dp))
             }
 
-            Text("Resultados", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(8.dp))
-
             if (!uiState.isLoading && uiState.tenants.isEmpty()) {
                 Text("No se encontraron negocios.")
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(vertical = 8.dp)
-                ) {
-                    items(uiState.tenants) { tenant ->
-                        Card(
+                return@Column
+            }
+
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(vertical = 8.dp)
+            ) {
+                items(uiState.tenants) { tenant ->
+                    val id = tenant.id
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp)
+                    ) {
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 6.dp)
+                                .padding(16.dp)
                         ) {
+                            Text(tenant.name, style = MaterialTheme.typography.titleMedium)
+                            Spacer(Modifier.height(10.dp))
+
                             Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Text(tenant.name)
+                                Button(
+                                    onClick = { if (id != null) onGoToCreateAppointment(id) },
+                                    enabled = id != null
+                                ) { Text("Agendar") }
 
-                                Row {
-                                    if (authVm.isOwnerOrAdmin()) {
-                                        TextButton(
-                                            onClick = {
-                                                val id = tenant.id ?: return@TextButton
-                                                onGoToAgenda(id)
-                                            }
-                                        ) {
-                                            Text("Agenda")
-                                        }
-                                        Spacer(Modifier.width(8.dp))
-                                    }
+                                if (isOwnerOrAdmin) {
+                                    OutlinedButton(
+                                        onClick = { if (id != null) onGoToAgenda(id) },
+                                        enabled = id != null
+                                    ) { Text("Agenda") }
 
-                                    TextButton(
-                                        onClick = {
-                                            val id = tenant.id ?: return@TextButton
-                                            onGoToCreateAppointment(id)
-                                        }
-                                    ) {
-                                        Text("Agendar")
-                                    }
+                                    OutlinedButton(
+                                        onClick = { if (id != null) onGoToServices(id) },
+                                        enabled = id != null
+                                    ) { Text("Servicios") }
+
+                                    OutlinedButton(
+                                        onClick = { if (id != null) onGoToHours(id) },
+                                        enabled = id != null
+                                    ) { Text("Horarios") }
                                 }
                             }
                         }

@@ -25,7 +25,6 @@ public class AppointmentController {
         this.service = service;
     }
 
-    // LISTAR citas del negocio
     @GetMapping
     public List<AppointmentResponse> list(@PathVariable Long tenantId) {
         return repository.findByTenantId(tenantId)
@@ -34,17 +33,20 @@ public class AppointmentController {
                 .toList();
     }
 
-    // CREAR cita (REQUESTED)
     @PostMapping
     public AppointmentResponse create(
             @PathVariable Long tenantId,
-            @RequestBody CreateAppointmentRequest req
+            @RequestBody CreateAppointmentRequest req,
+            Authentication authentication
     ) {
-        Appointment saved = service.create(tenantId, req);
+        Long userId = (authentication != null && authentication.getPrincipal() != null)
+                ? (Long) authentication.getPrincipal()
+                : null;
+
+        Appointment saved = service.create(tenantId, req, userId);
         return toResponse(saved);
     }
 
-    // APROBAR cita
     @PostMapping("/{id}/approve")
     public AppointmentResponse approve(
             @PathVariable Long tenantId,
@@ -56,7 +58,6 @@ public class AppointmentController {
         return toResponse(saved);
     }
 
-    // RECHAZAR cita
     @PostMapping("/{id}/reject")
     public AppointmentResponse reject(
             @PathVariable Long tenantId,
@@ -68,7 +69,6 @@ public class AppointmentController {
         return toResponse(saved);
     }
 
-    // Mapper interno
     private AppointmentResponse toResponse(Appointment a) {
         return new AppointmentResponse(
                 a.getId(),
@@ -76,7 +76,8 @@ public class AppointmentController {
                 a.getServiceId(),
                 a.getClientName(),
                 a.getStartAt().toString(),
-                a.getEndAt().toString()
+                a.getEndAt().toString(),
+                a.getStatus().name()
         );
     }
 }

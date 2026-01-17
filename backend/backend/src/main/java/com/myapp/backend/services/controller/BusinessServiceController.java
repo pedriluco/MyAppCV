@@ -10,6 +10,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/businesses/{tenantId}/services")
+@CrossOrigin
 public class BusinessServiceController {
 
     private final BusinessServiceService service;
@@ -22,15 +23,13 @@ public class BusinessServiceController {
     public List<ServiceResponse> list(@PathVariable Long tenantId) {
         return service.listActive(tenantId)
                 .stream()
-                .map(s -> {
-                    ServiceResponse r = new ServiceResponse();
-                    r.id = s.getId();
-                    r.tenantId = s.getTenantId();
-                    r.name = s.getName();
-                    r.durationMinutes = s.getDurationMinutes();
-                    r.active = s.getActive();
-                    return r;
-                })
+                .map(s -> new ServiceResponse(
+                        s.getId(),
+                        s.getTenantId(),
+                        s.getName(),
+                        s.getDurationMinutes(),
+                        s.getActive()
+                ))
                 .toList();
     }
 
@@ -43,13 +42,13 @@ public class BusinessServiceController {
         Long userId = (Long) authentication.getPrincipal();
         var saved = service.create(tenantId, req, userId);
 
-        ServiceResponse r = new ServiceResponse();
-        r.id = saved.getId();
-        r.tenantId = saved.getTenantId();
-        r.name = saved.getName();
-        r.durationMinutes = saved.getDurationMinutes();
-        r.active = saved.getActive();
-        return r;
+        return new ServiceResponse(
+                saved.getId(),
+                saved.getTenantId(),
+                saved.getName(),
+                saved.getDurationMinutes(),
+                saved.getActive()
+        );
     }
 
     @PatchMapping("/{serviceId}/active")

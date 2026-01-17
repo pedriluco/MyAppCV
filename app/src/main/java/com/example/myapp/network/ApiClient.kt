@@ -3,6 +3,9 @@ package com.example.myapp.network
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.converter.scalars.ScalarsConverterFactory
+import com.example.myapp.network.AuthApi
+
 
 object ApiClient {
 
@@ -36,7 +39,8 @@ object ApiClient {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
             .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(ScalarsConverterFactory.create()) // <- primero
+            .addConverterFactory(GsonConverterFactory.create())    // <- después
             .build()
     }
 
@@ -45,5 +49,4 @@ object ApiClient {
     val appointmentApi: AppointmentApi by lazy { retrofit.create(AppointmentApi::class.java) }
     val serviceApi: ServiceApi by lazy { retrofit.create(ServiceApi::class.java) }
     val hoursApi: BusinessHoursApi = retrofit.create(BusinessHoursApi::class.java)
-
 }

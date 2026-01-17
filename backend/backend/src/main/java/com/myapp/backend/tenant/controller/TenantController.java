@@ -19,19 +19,13 @@ public class TenantController {
     }
 
     @PostMapping
-    public Tenant create(
-            @RequestBody Tenant tenant,
-            Authentication authentication
-    ) {
+    public Tenant create(@RequestBody Tenant tenant, Authentication authentication) {
         Long userId = (Long) authentication.getPrincipal();
         return service.create(tenant, userId);
     }
 
     @PostMapping("/{id}/approve")
-    public Tenant approve(
-            @PathVariable Long id,
-            Authentication authentication
-    ) {
+    public Tenant approve(@PathVariable Long id, Authentication authentication) {
         Long userId = (Long) authentication.getPrincipal();
         return service.approve(id, userId);
     }

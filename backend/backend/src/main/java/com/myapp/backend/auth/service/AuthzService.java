@@ -1,48 +1,44 @@
 package com.myapp.backend.auth.service;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
+import com.myapp.backend.auth.entity.GlobalRole;
+import com.myapp.backend.auth.entity.User;
+import com.myapp.backend.auth.repository.UserRepository;
+import com.myapp.backend.membership.repository.MembershipRepository;
 import org.springframework.stereotype.Service;
-
-import java.security.Key;
 
 @Service
 public class AuthzService {
 
-    private final Key key;
+    private final UserRepository users;
+    private final MembershipRepository memberships;
 
-    public AuthzService(Key key) {
-        this.key = key;
+    public AuthzService(UserRepository users, MembershipRepository memberships) {
+        this.users = users;
+        this.memberships = memberships;
     }
 
-    public void assertAdmin(String jwt) {
-        Claims c = parse(jwt);
-        String role = c.get("role", String.class);
-        if (!"ADMIN".equals(role)) {
-            throw new RuntimeException("Forbidden");
+    public User requireUser(Long userId) {
+        return users.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+    }
+
+    public boolean isAdmin(User user) {
+        return user.getGlobalRole() == GlobalRole.ADMIN;
+    }
+
+    public void requireTenantAccess(Long businessId, Long userId) {
+        User user = requireUser(userId);
+
+        if (user.getGlobalRole() == GlobalRole.ADMIN) return;
+
+        boolean ok = memberships.existsByUserIdAndBusinessId(userId, businessId);
+        if (!ok) throw new RuntimeException("Forbidden");
+    }
+
+    public void assertAdmin(Long userId) {
+        User user = requireUser(userId);
+        if (!isAdmin(user)) {
+            throw new RuntimeException("Forbidden: requires ADMIN");
         }
-    }
-
-    public void assertOwnerOrAdmin(String jwt, Long businessId) {
-        Claims c = parse(jwt);
-        String role = c.get("role", String.class);
-        if ("ADMIN".equals(role) || "OWNER".equals(role)) return;
-        throw new RuntimeException("Forbidden");
-    }
-
-    public Long getUserId(String jwt) {
-        return Long.parseLong(parse(jwt).getSubject());
-    }
-
-    public String getRole(String jwt) {
-        return parse(jwt).get("role", String.class);
-    }
-
-    private Claims parse(String jwt) {
-        return Jwts.parserBuilder()
-                .setSigningKey(key)
-                .build()
-                .parseClaimsJws(jwt)
-                .getBody();
     }
 }

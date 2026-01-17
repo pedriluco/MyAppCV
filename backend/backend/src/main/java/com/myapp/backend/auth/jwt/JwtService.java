@@ -1,6 +1,7 @@
 package com.myapp.backend.auth.jwt;
 
-import io.jsonwebtoken.*;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.stereotype.Service;
 
@@ -11,28 +12,27 @@ import java.util.Date;
 public class JwtService {
 
     private static final String SECRET =
-            "super-secret-key-super-secret-key-super-secret-key"; // 256 bits mínimo
+            "super-secret-key-super-secret-key-super-secret-key";
 
-    private static final long EXPIRATION = 1000 * 60 * 60 * 24; // 24h
+    private static final long EXPIRATION_MS = 1000L * 60 * 60 * 24;
 
     private final Key key = Keys.hmacShaKeyFor(SECRET.getBytes());
 
-    public String generateToken(Long userId) {
+    public String generateToken(Long userId, String role) {
         return Jwts.builder()
-                .setSubject(userId.toString())
+                .setSubject(String.valueOf(userId))
+                .claim("role", role)
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION))
+                .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_MS))
                 .signWith(key)
                 .compact();
     }
 
-    public Long extractUserId(String token) {
-        Claims claims = Jwts.parserBuilder()
+    public Claims extractClaims(String token) {
+        return Jwts.parserBuilder()
                 .setSigningKey(key)
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
-
-        return Long.valueOf(claims.getSubject());
     }
 }

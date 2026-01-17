@@ -9,12 +9,15 @@ import retrofit2.http.Query
 interface TenantApi {
 
     @POST("tenants")
-    suspend fun createTenant(@Body tenant: Tenant): Tenant
+    suspend fun createTenant(
+        @Body tenant: Tenant
+    ): Tenant
 
     @GET("tenants")
     suspend fun getAllTenants(): List<Tenant>
 
     @GET("tenants/search")
-    suspend fun searchTenants(@Query("query") query: String): List<Tenant>
-
+    suspend fun searchTenants(
+        @Query("q") q: String
+    ): List<Tenant>
 }

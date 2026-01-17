@@ -24,22 +24,22 @@ public class BusinessServiceService {
     }
 
     public BusinessService create(Long tenantId, CreateServiceRequest req, Long userId) {
-        authz.assertOwnerOrAdmin(userId, tenantId);
+        authz.requireTenantAccess(tenantId, userId);
 
-        if (req.name == null || req.name.isBlank()) throw new RuntimeException("name required");
-        if (req.durationMinutes == null || req.durationMinutes <= 0) throw new RuntimeException("durationMinutes must be > 0");
+        if (req.name() == null || req.name().isBlank()) throw new RuntimeException("name required");
+        if (req.durationMinutes() == null || req.durationMinutes() <= 0) throw new RuntimeException("durationMinutes must be > 0");
 
         BusinessService s = new BusinessService();
         s.setTenantId(tenantId);
-        s.setName(req.name.trim());
-        s.setDurationMinutes(req.durationMinutes);
+        s.setName(req.name().trim());
+        s.setDurationMinutes(req.durationMinutes());
         s.setActive(true);
 
         return repository.save(s);
     }
 
     public void setActive(Long tenantId, Long serviceId, Boolean active, Long userId) {
-        authz.assertOwnerOrAdmin(userId, tenantId);
+        authz.requireTenantAccess(tenantId, userId);
 
         BusinessService s = repository.findByIdAndTenantId(serviceId, tenantId).orElseThrow();
         s.setActive(active != null && active);

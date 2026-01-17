@@ -3,6 +3,7 @@ package com.example.myapp.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.myapp.data.repository.AuthRepository
+import com.example.myapp.utils.JwtUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -36,9 +37,13 @@ class AuthViewModel(
     fun loadToken() {
         viewModelScope.launch {
             val hasToken = repo.loadTokenIntoClient()
+            val token = repo.getToken()
+            val role = JwtUtils.getRole(token) ?: "USER"
+
             _state.value = _state.value.copy(
                 loggedIn = hasToken,
-                checkedToken = true
+                checkedToken = true,
+                role = if (hasToken) role else "USER"
             )
         }
     }
@@ -54,11 +59,13 @@ class AuthViewModel(
 
         viewModelScope.launch {
             val result = repo.login(s.email.trim(), s.password)
-            result.onSuccess {
+            result.onSuccess { token ->
+                val role = JwtUtils.getRole(token) ?: "USER"
                 _state.value = _state.value.copy(
                     loading = false,
                     loggedIn = true,
-                    checkedToken = true
+                    checkedToken = true,
+                    role = role
                 )
             }.onFailure { e ->
                 _state.value = _state.value.copy(

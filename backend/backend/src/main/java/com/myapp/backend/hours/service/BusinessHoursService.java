@@ -6,6 +6,7 @@ import com.myapp.backend.hours.entity.BusinessHours;
 import com.myapp.backend.hours.repository.BusinessHoursRepository;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -24,7 +25,7 @@ public class BusinessHoursService {
     }
 
     public void upsert(Long tenantId, BusinessHoursRequest req, Long userId) {
-        authz.assertOwnerOrAdmin(userId, tenantId);
+        authz.requireTenantAccess(tenantId, userId);
 
         BusinessHours hours = repository
                 .findByTenantIdAndDayOfWeek(tenantId, req.dayOfWeek)
@@ -41,9 +42,10 @@ public class BusinessHoursService {
 
         repository.save(hours);
     }
+
     public BusinessHours getForDateOrThrow(Long tenantId, LocalDate date) {
-        int day = date.getDayOfWeek().getValue(); // 1=lun ... 7=dom
+        int day = date.getDayOfWeek().getValue();
         return repository.findByTenantIdAndDayOfWeek(tenantId, day)
-                .orElseThrow(); // luego lo cambias por tu excepción bonita
+                .orElseThrow();
     }
 }
