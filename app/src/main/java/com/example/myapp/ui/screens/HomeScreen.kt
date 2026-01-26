@@ -4,145 +4,173 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.myapp.viewmodel.AuthViewModel
-import com.example.myapp.viewmodel.TenantViewModel
+import com.example.myapp.data.model.Tenant
+import com.example.myapp.ui.AppCard
+import com.example.myapp.ui.CenterText
+import com.example.myapp.ui.ScreenScaffold
+import com.example.myapp.ui.Ui
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    authVm: AuthViewModel,
+    title: String = "Negocios",
+    tenants: List<Tenant>,
+    isOwner: Boolean,
+    isAdmin: Boolean,
+    onRefresh: () -> Unit,
     onLogout: () -> Unit,
-    onGoToCreate: () -> Unit,
+    onGoToCreateBusiness: () -> Unit,
+    onGoToCreateAppointment: (tenantId: Long, status: String) -> Unit,
     onGoToAgenda: (Long) -> Unit,
-    onGoToCreateAppointment: (Long) -> Unit,
     onGoToServices: (Long) -> Unit,
     onGoToHours: (Long) -> Unit,
-    onGoToAdminRequests: () -> Unit,
-    tenantViewModel: TenantViewModel = viewModel()
+    onGoToAdminRequests: () -> Unit
 ) {
-    var query by remember { mutableStateOf("") }
-    val uiState by tenantViewModel.uiState.collectAsState()
-
-    val isAdmin = authVm.isAdmin()
-    val isOwnerOrAdmin = authVm.isOwnerOrAdmin()
-
-    LaunchedEffect(Unit) {
-        tenantViewModel.loadAllTenants()
-    }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Negocios") },
-                actions = {
-                    if (isAdmin) {
-                        TextButton(onClick = onGoToAdminRequests) { Text("Solicitudes") }
-                        Spacer(Modifier.width(8.dp))
-                    }
-
-                    if (isOwnerOrAdmin) {
-                        TextButton(onClick = onGoToCreate) { Text("Crear negocio") }
-                        Spacer(Modifier.width(8.dp))
-                    }
-
-                    TextButton(onClick = {
-                        authVm.logout()
-                        onLogout()
-                    }) {
-                        Text("Salir")
-                    }
-                }
-            )
+    ScreenScaffold(
+        title = title,
+        canBack = false,
+        onBack = {},
+        scroll = false,
+        actions = {
+            TextButton(onClick = onRefresh) { Text("Recargar") }
+            TextButton(onClick = onLogout) { Text("Salir") }
         }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .padding(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-
-            OutlinedTextField(
-                value = query,
-                onValueChange = {
-                    query = it
-                    tenantViewModel.search(query)
-                },
-                label = { Text("Buscar por nombre") },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            if (uiState.isLoading) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                Spacer(Modifier.height(12.dp))
+            if (isOwner) {
+                Button(
+                    onClick = onGoToCreateBusiness,
+                    modifier = Modifier.weight(1f)
+                ) { Text("Crear negocio") }
+            } else {
+                OutlinedButton(
+                    onClick = onRefresh,
+                    modifier = Modifier.weight(1f)
+                ) { Text("Explorar") }
             }
 
-            uiState.error?.let {
-                Text(it, color = MaterialTheme.colorScheme.error)
-                Spacer(Modifier.height(12.dp))
+            if (isAdmin) {
+                OutlinedButton(
+                    onClick = onGoToAdminRequests,
+                    modifier = Modifier.weight(1f)
+                ) { Text("Admin") }
             }
+        }
 
-            if (!uiState.isLoading && uiState.tenants.isEmpty()) {
-                Text("No se encontraron negocios.")
-                return@Column
-            }
+        Spacer(Modifier.height(Ui.Gap))
 
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(vertical = 8.dp)
-            ) {
-                items(uiState.tenants) { tenant ->
-                    val id = tenant.id
+        if (tenants.isEmpty()) {
+            CenterText("No hay negocios todavía")
+            return@ScreenScaffold
+        }
 
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 6.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp)
-                        ) {
-                            Text(tenant.name, style = MaterialTheme.typography.titleMedium)
-                            Spacer(Modifier.height(10.dp))
+        val sortedTenants = tenants.sortedBy { it.status != "ACTIVE" }
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Button(
-                                    onClick = { if (id != null) onGoToCreateAppointment(id) },
-                                    enabled = id != null
-                                ) { Text("Agendar") }
-
-                                if (isOwnerOrAdmin) {
-                                    OutlinedButton(
-                                        onClick = { if (id != null) onGoToAgenda(id) },
-                                        enabled = id != null
-                                    ) { Text("Agenda") }
-
-                                    OutlinedButton(
-                                        onClick = { if (id != null) onGoToServices(id) },
-                                        enabled = id != null
-                                    ) { Text("Servicios") }
-
-                                    OutlinedButton(
-                                        onClick = { if (id != null) onGoToHours(id) },
-                                        enabled = id != null
-                                    ) { Text("Horarios") }
-                                }
-                            }
-                        }
-                    }
-                }
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(Ui.Gap)
+        ) {
+            items(sortedTenants) { t ->
+                TenantCard(
+                    tenant = t,
+                    isOwner = isOwner,
+                    onGoToCreateAppointment = onGoToCreateAppointment,
+                    onGoToAgenda = onGoToAgenda,
+                    onGoToServices = onGoToServices,
+                    onGoToHours = onGoToHours
+                )
             }
         }
     }
 }
+
+@Composable
+private fun TenantCard(
+    tenant: Tenant,
+    isOwner: Boolean,
+    onGoToCreateAppointment: (Long, String) -> Unit,
+    onGoToAgenda: (Long) -> Unit,
+    onGoToServices: (Long) -> Unit,
+    onGoToHours: (Long) -> Unit
+) {
+    val id = tenant.id?.toString()?.toLongOrNull() ?: 0L
+    val status = tenant.status ?: "PENDING"
+
+    val statusColor = when (status) {
+        "ACTIVE" -> MaterialTheme.colorScheme.primary
+        "PENDING" -> MaterialTheme.colorScheme.tertiary
+        else -> MaterialTheme.colorScheme.outline
+    }
+
+    AppCard {
+        Text(tenant.name ?: "Negocio", style = MaterialTheme.typography.titleMedium)
+
+        Surface(
+            color = statusColor.copy(alpha = 0.12f),
+            shape = MaterialTheme.shapes.small
+        ) {
+            Text(
+                text = status,
+                color = statusColor,
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+            )
+        }
+
+        Spacer(Modifier.height(10.dp))
+
+        if (isOwner) {
+            if (status == "PENDING") {
+                Text(
+                    "Tu negocio está en revisión",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Spacer(Modifier.height(8.dp))
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedButton(
+                    onClick = { onGoToAgenda(id) },
+                    modifier = Modifier.weight(1f)
+                ) { Text("Agenda") }
+
+                OutlinedButton(
+                    onClick = { onGoToServices(id) },
+                    modifier = Modifier.weight(1f)
+                ) { Text("Servicios") }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            OutlinedButton(
+                onClick = { onGoToHours(id) },
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Horarios") }
+        } else {
+            Button(
+                onClick = { onGoToCreateAppointment(id, status) },
+                enabled = status == "ACTIVE",
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(if (status == "ACTIVE") "Agendar cita" else "No disponible")
+            }
+
+            if (status != "ACTIVE") {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Este negocio está en revisión. Aún no acepta citas.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+    }
+}
+

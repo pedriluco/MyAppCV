@@ -31,10 +31,23 @@ public class SecurityConfig {
                 .httpBasic(b -> b.disable())
                 .formLogin(f -> f.disable())
                 .authorizeHttpRequests(auth -> auth
+
+                        // Públicos
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/tenants/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/businesses/*/appointments").permitAll()
+
+                        // Appointments
+                        .requestMatchers(HttpMethod.POST, "/businesses/*/appointments")
+                        .hasAnyRole("USER", "OWNER", "ADMIN")
+
+                        .requestMatchers(HttpMethod.POST, "/businesses/*/appointments/*/approve")
+                        .hasAnyRole("OWNER", "ADMIN")
+
+                        .requestMatchers(HttpMethod.POST, "/businesses/*/appointments/*/reject")
+                        .hasAnyRole("OWNER", "ADMIN")
+
+                        // Todo lo demás requiere autenticación
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
@@ -43,9 +56,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(
-            AuthenticationConfiguration config
-    ) throws Exception {
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
 

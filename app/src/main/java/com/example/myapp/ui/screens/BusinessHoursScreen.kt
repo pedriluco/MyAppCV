@@ -9,7 +9,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.myapp.network.BusinessHoursDto
 import com.example.myapp.ui.AppCard
 import com.example.myapp.ui.CenterLoading
 import com.example.myapp.ui.CenterText
@@ -17,6 +16,7 @@ import com.example.myapp.ui.ScreenScaffold
 import com.example.myapp.ui.Ui
 import com.example.myapp.viewmodel.BusinessHoursViewModel
 import androidx.compose.ui.text.input.KeyboardType
+import com.example.myapp.network.BusinessHoursDto
 
 
 

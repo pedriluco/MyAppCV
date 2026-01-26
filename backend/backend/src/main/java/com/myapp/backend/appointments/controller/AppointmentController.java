@@ -5,6 +5,7 @@ import com.myapp.backend.appointments.dto.CreateAppointmentRequest;
 import com.myapp.backend.appointments.entity.Appointment;
 import com.myapp.backend.appointments.repository.AppointmentRepository;
 import com.myapp.backend.appointments.service.AppointmentService;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,6 +26,7 @@ public class AppointmentController {
         this.service = service;
     }
 
+    @PreAuthorize("hasAnyRole('OWNER','ADMIN')")
     @GetMapping
     public List<AppointmentResponse> list(@PathVariable Long tenantId) {
         return repository.findByTenantId(tenantId)
@@ -33,40 +35,58 @@ public class AppointmentController {
                 .toList();
     }
 
+    // SIN @PreAuthorize("permitAll()") (sin anotación; lo controla SecurityConfig)
     @PostMapping
     public AppointmentResponse create(
             @PathVariable Long tenantId,
             @RequestBody CreateAppointmentRequest req,
             Authentication authentication
     ) {
-        Long userId = (authentication != null && authentication.getPrincipal() != null)
-                ? (Long) authentication.getPrincipal()
-                : null;
-
+        System.out.println(">>> HIT CREATE APPOINTMENT <<<");
+        Long userId = extractUserId(authentication);
         Appointment saved = service.create(tenantId, req, userId);
         return toResponse(saved);
     }
 
+    @PreAuthorize("hasAnyRole('OWNER','ADMIN')")
     @PostMapping("/{id}/approve")
     public AppointmentResponse approve(
             @PathVariable Long tenantId,
             @PathVariable Long id,
             Authentication authentication
     ) {
-        Long userId = (Long) authentication.getPrincipal();
+        Long userId = extractUserId(authentication);
         Appointment saved = service.approve(tenantId, id, userId);
         return toResponse(saved);
     }
 
+    @PreAuthorize("hasAnyRole('OWNER','ADMIN')")
     @PostMapping("/{id}/reject")
     public AppointmentResponse reject(
             @PathVariable Long tenantId,
             @PathVariable Long id,
             Authentication authentication
     ) {
-        Long userId = (Long) authentication.getPrincipal();
+        Long userId = extractUserId(authentication);
         Appointment saved = service.reject(tenantId, id, userId);
         return toResponse(saved);
+    }
+
+    private Long extractUserId(Authentication authentication) {
+        if (authentication == null || authentication.getPrincipal() == null) return null;
+
+        Object principal = authentication.getPrincipal();
+
+        if (principal instanceof Long l) return l;
+
+        if (principal instanceof String s) {
+            try {
+                return Long.parseLong(s);
+            } catch (NumberFormatException ignored) {
+            }
+        }
+
+        return null;
     }
 
     private AppointmentResponse toResponse(Appointment a) {

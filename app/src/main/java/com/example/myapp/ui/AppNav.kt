@@ -25,12 +25,14 @@ object Routes {
     const val HOME = "home"
     const val CREATE_BUSINESS = "create_business"
 
-    const val CREATE_APPOINTMENT = "create_appointment/{tenantId}"
+    const val CREATE_APPOINTMENT = "create_appointment/{tenantId}/{status}"
     const val AGENDA = "agenda/{tenantId}"
     const val SERVICES = "services/{tenantId}"
     const val HOURS = "hours/{tenantId}"
 
-    fun createAppointment(tenantId: Long) = "create_appointment/$tenantId"
+    const val ADMIN_REQUESTS = "admin_requests"
+
+    fun createAppointment(tenantId: Long, status: String) = "create_appointment/$tenantId/$status"
     fun agenda(tenantId: Long) = "agenda/$tenantId"
     fun services(tenantId: Long) = "services/$tenantId"
     fun hours(tenantId: Long) = "hours/$tenantId"
@@ -42,23 +44,22 @@ fun AppNav(
 ) {
     val nav = rememberNavController()
     val scope = rememberCoroutineScope()
-
     val context = LocalContext.current
 
     val authVm: AuthViewModel = viewModel(
         factory = AuthViewModelFactory(
-            AuthRepository(
-                TokenStore(context)
-            )
+            AuthRepository(tokenStore)
         )
     )
 
     val tenantVm: TenantViewModel = viewModel()
 
     val authState by authVm.state.collectAsState()
+    val tenantState by tenantVm.uiState.collectAsState()
 
     LaunchedEffect(Unit) {
         authVm.loadToken()
+        tenantVm.loadAllTenants()
     }
 
     LaunchedEffect(authState.checkedToken, authState.loggedIn) {
@@ -79,6 +80,7 @@ fun AppNav(
             LoginScreen(
                 vm = authVm,
                 onLoggedIn = {
+                    tenantVm.loadAllTenants()
                     nav.navigate(Routes.HOME) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
                         launchSingleTop = true
@@ -86,10 +88,18 @@ fun AppNav(
                 }
             )
         }
+
         composable(Routes.HOME) {
+            val role = authState.role
+            val isOwner = role == "OWNER" || role == "ADMIN"
+            val isAdmin = role == "ADMIN"
+
             HomeScreen(
-                authVm = authVm,
-                tenantViewModel = tenantVm,
+                title = "Negocios",
+                tenants = tenantState.tenants,
+                isOwner = isOwner,
+                isAdmin = isAdmin,
+                onRefresh = { tenantVm.loadAllTenants() },
                 onLogout = {
                     scope.launch {
                         authVm.logout()
@@ -99,23 +109,16 @@ fun AppNav(
                         }
                     }
                 },
-                onGoToCreate = { nav.navigate(Routes.CREATE_BUSINESS) },
+                onGoToCreateBusiness = { nav.navigate(Routes.CREATE_BUSINESS) },
+                onGoToCreateAppointment = { tenantId, status ->
+                    nav.navigate(Routes.createAppointment(tenantId, status))
+                },
                 onGoToAgenda = { tenantId -> nav.navigate(Routes.agenda(tenantId)) },
-                onGoToCreateAppointment = { tenantId ->
-                    nav.navigate(Routes.createAppointment(tenantId))
-                },
-                onGoToServices = { tenantId ->
-                    nav.navigate(Routes.services(tenantId))
-                },
-                onGoToHours = { tenantId ->
-                    nav.navigate(Routes.hours(tenantId))
-                },
-                onGoToAdminRequests = {
-                    // luego lo conectamos
-                }
+                onGoToServices = { tenantId -> nav.navigate(Routes.services(tenantId)) },
+                onGoToHours = { tenantId -> nav.navigate(Routes.hours(tenantId)) },
+                onGoToAdminRequests = { nav.navigate(Routes.ADMIN_REQUESTS) }
             )
         }
-
 
         composable(Routes.CREATE_BUSINESS) {
             CreateBusinessScreen(
@@ -126,18 +129,18 @@ fun AppNav(
 
         composable(
             route = Routes.CREATE_APPOINTMENT,
-            arguments = listOf(navArgument("tenantId") { type = NavType.LongType })
+            arguments = listOf(
+                navArgument("tenantId") { type = NavType.LongType },
+                navArgument("status") { type = NavType.StringType }
+            )
         ) { backStackEntry ->
             val tenantId = backStackEntry.arguments?.getLong("tenantId") ?: 0L
+            val status = backStackEntry.arguments?.getString("status") ?: "PENDING"
 
             CreateAppointmentScreen(
                 tenantId = tenantId,
-                onBack = { nav.popBackStack() },
-                onGoToAgenda = { id ->
-                    nav.navigate(Routes.agenda(id)) {
-                        launchSingleTop = true
-                    }
-                }
+                tenantStatus = status,
+                navController = nav
             )
         }
 
@@ -171,6 +174,13 @@ fun AppNav(
             BusinessHoursScreen(
                 navController = nav,
                 tenantId = tenantId
+            )
+        }
+
+        composable(Routes.ADMIN_REQUESTS) {
+            AdminRequestsScreen(
+                navController = nav,
+                tenantVm = tenantVm
             )
         }
     }

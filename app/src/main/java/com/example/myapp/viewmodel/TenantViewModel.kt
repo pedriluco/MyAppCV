@@ -62,6 +62,22 @@ class TenantViewModel : ViewModel() {
         }
     }
 
+    fun approveTenant(id: Long) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            try {
+                repository.approveTenant(id)
+                val list = repository.getAllTenants()
+                _uiState.value = _uiState.value.copy(isLoading = false, tenants = list)
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = e.message ?: "Error aprobando negocio"
+                )
+            }
+        }
+    }
+
     fun search(query: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)

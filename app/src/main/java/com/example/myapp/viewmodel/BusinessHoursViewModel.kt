@@ -20,13 +20,9 @@ class BusinessHoursViewModel : ViewModel() {
     private val _state = MutableStateFlow(HoursUiState())
     val state = _state.asStateFlow()
 
-    private fun setState(reducer: (HoursUiState) -> HoursUiState) {
-        _state.value = reducer(_state.value)
-    }
-
     fun load(tenantId: Long) {
         viewModelScope.launch {
-            setState { it.copy(loading = true, error = null) }
+            _state.value = _state.value.copy(loading = true, error = null)
 
             runCatching { ApiClient.hoursApi.getAll(tenantId) }
                 .onSuccess { items ->
@@ -39,12 +35,12 @@ class BusinessHoursViewModel : ViewModel() {
     }
 
     fun update(items: List<BusinessHoursDto>) {
-        setState { it.copy(items = items) }
+        _state.value = _state.value.copy(items = items)
     }
 
     fun saveAndReload(tenantId: Long) {
         viewModelScope.launch {
-            setState { it.copy(saving = true, error = null) }
+            _state.value = _state.value.copy(saving = true, error = null)
 
             runCatching {
                 val cleaned = _state.value.items.map { h ->
@@ -52,11 +48,14 @@ class BusinessHoursViewModel : ViewModel() {
                 }
 
                 ApiClient.hoursApi.saveAll(tenantId, cleaned)
-                ApiClient.hoursApi.getAll(tenantId)
-            }.onSuccess { fresh ->
-                _state.value = HoursUiState(items = fresh)
+            }.onSuccess { saved ->
+                // backend devuelve lista final
+                _state.value = HoursUiState(items = saved)
             }.onFailure { e ->
-                setState { it.copy(saving = false, error = e.message ?: "Error") }
+                _state.value = _state.value.copy(
+                    saving = false,
+                    error = e.message ?: "Error"
+                )
             }
         }
     }

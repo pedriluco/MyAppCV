@@ -10,7 +10,6 @@ class AuthRepository(
     private val tokenStore: TokenStore
 ) {
 
-    // LOGIN: regresa el token
     suspend fun login(email: String, password: String): Result<String> =
         withContext(Dispatchers.IO) {
             runCatching {

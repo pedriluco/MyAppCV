@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.myapp.ui.AppCard
@@ -14,7 +15,7 @@ import com.example.myapp.ui.CenterText
 import com.example.myapp.ui.ScreenScaffold
 import com.example.myapp.ui.Ui
 import com.example.myapp.viewmodel.AgendaViewModel
-import androidx.compose.ui.unit.dp
+import com.example.myapp.utils.DateFormatUtils
 
 
 @Composable
@@ -25,7 +26,6 @@ fun AgendaScreen(
 ) {
     val state by vm.state.collectAsState()
 
-    // carga inicial
     LaunchedEffect(tenantId) {
         vm.load(tenantId)
     }
@@ -36,7 +36,7 @@ fun AgendaScreen(
         onBack = { navController.popBackStack() },
         scroll = false,
         actions = {
-            if (!state.loading) {
+            if (!state.loading && state.savingId == null) {
                 TextButton(onClick = { vm.load(tenantId) }) { Text("Recargar") }
             }
         }
@@ -70,13 +70,16 @@ fun AgendaScreen(
                     verticalArrangement = Arrangement.spacedBy(Ui.Gap)
                 ) {
                     items(state.items) { a ->
+                        val isSavingThis = state.savingId == a.id
+                        val canDecide = a.status == "REQUESTED"
+
                         AppCard {
                             Text(
                                 text = a.clientName,
                                 style = MaterialTheme.typography.titleMedium
                             )
                             Text(
-                                text = "${a.startAt}  →  ${a.endAt}",
+                                text = DateFormatUtils.formatRange(a.startAt, a.endAt),
                                 style = MaterialTheme.typography.bodyMedium
                             )
                             Text(
@@ -84,26 +87,28 @@ fun AgendaScreen(
                                 style = MaterialTheme.typography.bodySmall
                             )
 
-                            Spacer(Modifier.height(6.dp))
+                            if (canDecide) {
+                                Spacer(Modifier.height(6.dp))
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                OutlinedButton(
-                                    onClick = { vm.reject(tenantId, a.id) },
-                                    enabled = !state.saving,
-                                    modifier = Modifier.weight(1f)
-                                ) { Text("Rechazar") }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    OutlinedButton(
+                                        onClick = { vm.reject(tenantId, a.id) },
+                                        enabled = !isSavingThis && state.savingId == null,
+                                        modifier = Modifier.weight(1f)
+                                    ) { Text("Rechazar") }
 
-                                Button(
-                                    onClick = { vm.approve(tenantId, a.id) },
-                                    enabled = !state.saving,
-                                    modifier = Modifier.weight(1f)
-                                ) { Text("Aprobar") }
+                                    Button(
+                                        onClick = { vm.approve(tenantId, a.id) },
+                                        enabled = !isSavingThis && state.savingId == null,
+                                        modifier = Modifier.weight(1f)
+                                    ) { Text("Aprobar") }
+                                }
                             }
 
-                            if (state.saving) {
+                            if (isSavingThis) {
                                 Spacer(Modifier.height(8.dp))
                                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                             }

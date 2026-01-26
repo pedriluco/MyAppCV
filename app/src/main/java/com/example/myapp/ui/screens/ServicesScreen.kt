@@ -6,7 +6,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -16,9 +15,8 @@ import com.example.myapp.ui.CenterLoading
 import com.example.myapp.ui.CenterText
 import com.example.myapp.ui.ScreenScaffold
 import com.example.myapp.ui.Ui
+import com.example.myapp.ui.Routes
 import com.example.myapp.viewmodel.ServiceViewModel
-
-
 
 @Composable
 fun ServicesScreen(
@@ -28,7 +26,6 @@ fun ServicesScreen(
 ) {
     val state by vm.state.collectAsState()
 
-    // carga inicial
     LaunchedEffect(tenantId) {
         vm.load(tenantId)
     }
@@ -51,7 +48,6 @@ fun ServicesScreen(
                 onCancel = { showCreate = false },
                 onCreate = { name, duration ->
                     vm.create(tenantId, name, duration)
-                    // si se quedó "creating" true, igual se cierra para UI limpia
                     showCreate = false
                 }
             )
@@ -86,7 +82,12 @@ fun ServicesScreen(
                     items(state.items) { s ->
                         ServiceItemCard(
                             service = s,
-                            onToggle = { vm.toggleActive(tenantId, s) }
+                            onToggle = { vm.toggleActive(tenantId, s) },
+                            onClick = {
+                                navController.navigate(
+                                    Routes.createAppointment(tenantId, "ACTIVE")
+                                )
+                            }
                         )
                     }
                 }
@@ -98,9 +99,12 @@ fun ServicesScreen(
 @Composable
 private fun ServiceItemCard(
     service: ServiceDto,
-    onToggle: () -> Unit
+    onToggle: () -> Unit,
+    onClick: () -> Unit
 ) {
-    AppCard {
+    AppCard(
+        onClick = onClick
+    ) {
         Text(service.name, style = MaterialTheme.typography.titleMedium)
         Text("Duración: ${service.durationMinutes} min", style = MaterialTheme.typography.bodyMedium)
         Text(
@@ -149,7 +153,7 @@ private fun CreateServiceCard(
             onValueChange = { durationText = it.filter { ch -> ch.isDigit() } },
             label = { Text("Duración (min)") },
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
+            singleLine = true
         )
 
         if (creating) {
@@ -177,4 +181,3 @@ private fun CreateServiceCard(
         }
     }
 }
-

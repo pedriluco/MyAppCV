@@ -18,13 +18,20 @@ object JwtUtils {
                 )
             )
             JSONObject(payload)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             null
         }
     }
 
-    fun getClaim(token: String?, key: String): String? =
-        decodePayload(token)?.optString(key, null)
+    fun getClaim(token: String?, key: String): String? {
+        if (token.isNullOrBlank()) return null
+        return try {
+            val payload = decodePayload(token) ?: return null
+            if (!payload.has(key)) null else payload.getString(key)
+        } catch (e: Exception) {
+            null
+        }
+    }
 
     fun getRole(token: String?): String? =
         getClaim(token, "role")

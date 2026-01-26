@@ -10,7 +10,7 @@ import kotlinx.coroutines.launch
 
 data class AgendaUiState(
     val loading: Boolean = false,
-    val saving: Boolean = false,
+    val savingId: Long? = null,
     val error: String? = null,
     val items: List<AppointmentDto> = emptyList()
 )
@@ -25,24 +25,32 @@ class AgendaViewModel : ViewModel() {
             _state.value = _state.value.copy(loading = true, error = null)
             runCatching {
                 ApiClient.appointmentApi.list(tenantId)
-            }.onSuccess {
-                _state.value = AgendaUiState(items = it)
+            }.onSuccess { list ->
+                _state.value = _state.value.copy(
+                    loading = false,
+                    error = null,
+                    items = list
+                )
             }.onFailure { e ->
-                _state.value = AgendaUiState(error = e.message ?: "Error")
+                _state.value = _state.value.copy(
+                    loading = false,
+                    error = e.message ?: "Error"
+                )
             }
         }
     }
 
     fun approve(tenantId: Long, id: Long) {
         viewModelScope.launch {
-            _state.value = _state.value.copy(saving = true)
+            _state.value = _state.value.copy(savingId = id, error = null)
             runCatching {
                 ApiClient.appointmentApi.approve(tenantId, id)
             }.onSuccess {
+                _state.value = _state.value.copy(savingId = null)
                 load(tenantId)
             }.onFailure { e ->
                 _state.value = _state.value.copy(
-                    saving = false,
+                    savingId = null,
                     error = e.message ?: "Error"
                 )
             }
@@ -51,14 +59,15 @@ class AgendaViewModel : ViewModel() {
 
     fun reject(tenantId: Long, id: Long) {
         viewModelScope.launch {
-            _state.value = _state.value.copy(saving = true)
+            _state.value = _state.value.copy(savingId = id, error = null)
             runCatching {
                 ApiClient.appointmentApi.reject(tenantId, id)
             }.onSuccess {
+                _state.value = _state.value.copy(savingId = null)
                 load(tenantId)
             }.onFailure { e ->
                 _state.value = _state.value.copy(
-                    saving = false,
+                    savingId = null,
                     error = e.message ?: "Error"
                 )
             }

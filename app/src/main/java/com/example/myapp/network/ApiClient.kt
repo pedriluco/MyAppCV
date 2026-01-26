@@ -4,14 +4,11 @@ import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.converter.scalars.ScalarsConverterFactory
-import com.example.myapp.network.AuthApi
-
 
 object ApiClient {
 
     private const val BASE_URL = "http://10.0.2.2:8080/"
 
-    // 🔑 Token en memoria (el interceptor SOLO usa esto)
     @Volatile
     private var token: String? = null
 
@@ -22,15 +19,14 @@ object ApiClient {
     private val okHttpClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .addInterceptor { chain ->
-                val requestBuilder = chain.request().newBuilder()
-                val currentToken = token
-                if (!currentToken.isNullOrBlank()) {
-                    requestBuilder.addHeader(
-                        "Authorization",
-                        "Bearer $currentToken"
-                    )
+                val request = chain.request()
+                val builder = request.newBuilder()
+
+                token?.let {
+                    builder.addHeader("Authorization", "Bearer $it")
                 }
-                chain.proceed(requestBuilder.build())
+
+                chain.proceed(builder.build())
             }
             .build()
     }
@@ -39,14 +35,28 @@ object ApiClient {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
             .client(okHttpClient)
-            .addConverterFactory(ScalarsConverterFactory.create()) // <- primero
-            .addConverterFactory(GsonConverterFactory.create())    // <- después
+            .addConverterFactory(ScalarsConverterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create())
             .build()
     }
 
-    val authApi: AuthApi by lazy { retrofit.create(AuthApi::class.java) }
-    val tenantApi: TenantApi by lazy { retrofit.create(TenantApi::class.java) }
-    val appointmentApi: AppointmentApi by lazy { retrofit.create(AppointmentApi::class.java) }
-    val serviceApi: ServiceApi by lazy { retrofit.create(ServiceApi::class.java) }
-    val hoursApi: BusinessHoursApi = retrofit.create(BusinessHoursApi::class.java)
+    val authApi: AuthApi by lazy {
+        retrofit.create(AuthApi::class.java)
+    }
+
+    val tenantApi: TenantApi by lazy {
+        retrofit.create(TenantApi::class.java)
+    }
+
+    val appointmentApi: AppointmentApi by lazy {
+        retrofit.create(AppointmentApi::class.java)
+    }
+
+    val serviceApi: ServiceApi by lazy {
+        retrofit.create(ServiceApi::class.java)
+    }
+
+    val hoursApi: BusinessHoursApi by lazy {
+        retrofit.create(BusinessHoursApi::class.java)
+    }
 }

@@ -16,4 +16,9 @@ class TenantRepository {
     suspend fun searchTenants(query: String): List<Tenant> {
         return ApiClient.tenantApi.searchTenants(query)
     }
+
+    suspend fun approveTenant(id: Long): Tenant {
+        return ApiClient.tenantApi.approveTenant(id)
+    }
+
 }

@@ -22,22 +22,22 @@ class AppointmentViewModel : ViewModel() {
         tenantId: Long,
         serviceId: Long,
         clientName: String,
-        date: String,
-        time: String,
+        date: String,   // YYYY-MM-DD
+        time: String,   // HH:mm
         onSuccess: () -> Unit
     ) {
         viewModelScope.launch {
             _uiState.value = AppointmentUiState(isLoading = true, error = null)
 
-            val startAtIso = "${date.trim()}T${time.trim()}:00"
-
             runCatching {
                 ApiClient.appointmentApi.create(
                     tenantId,
                     CreateAppointmentRequest(
+                        tenantId = tenantId,
                         serviceId = serviceId,
                         clientName = clientName.trim(),
-                        startAt = startAtIso
+                        date = date.trim(),
+                        time = time.trim()
                     )
                 )
             }.onSuccess {

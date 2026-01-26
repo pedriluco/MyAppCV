@@ -4,7 +4,11 @@ import com.myapp.backend.auth.entity.GlobalRole;
 import com.myapp.backend.auth.entity.User;
 import com.myapp.backend.auth.repository.UserRepository;
 import com.myapp.backend.membership.repository.MembershipRepository;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class AuthzService {
@@ -19,26 +23,53 @@ public class AuthzService {
 
     public User requireUser(Long userId) {
         return users.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
     }
 
-    public boolean isAdmin(User user) {
-        return user.getGlobalRole() == GlobalRole.ADMIN;
-    }
+    public void requireTenantAccess(Long tenantId, Long userId) {
+        // 1) si no hay userId -> 401 (evita 500 / NPE)
+        if (userId == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "No auth user");
+        }
 
-    public void requireTenantAccess(Long businessId, Long userId) {
+        // 2) ADMIN bypass (no necesita membership)
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAdmin =
+                auth != null
+                        && auth.isAuthenticated()
+                        && auth.getPrincipal() != null
+                        && !"anonymousUser".equals(auth.getPrincipal())
+                        && auth.getAuthorities().stream()
+                        .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+
+        if (isAdmin) {
+            return;
+        }
+
+        // 3) lógica normal (OWNER + membership)
         User user = requireUser(userId);
 
-        if (user.getGlobalRole() == GlobalRole.ADMIN) return;
+        if (user.getGlobalRole() != GlobalRole.OWNER) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        }
 
-        boolean ok = memberships.existsByUserIdAndBusinessId(userId, businessId);
-        if (!ok) throw new RuntimeException("Forbidden");
+        boolean ok = memberships.existsByUserIdAndBusinessId(userId, tenantId);
+        if (!ok) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        }
     }
 
     public void assertAdmin(Long userId) {
-        User user = requireUser(userId);
-        if (!isAdmin(user)) {
-            throw new RuntimeException("Forbidden: requires ADMIN");
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "No auth");
+        }
+
+        boolean ok = auth.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+
+        if (!ok) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin only");
         }
     }
 }
