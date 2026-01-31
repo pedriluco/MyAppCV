@@ -19,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.List;
 
 @Service
 public class AppointmentService {
@@ -43,11 +44,23 @@ public class AppointmentService {
         this.authz = authz;
     }
 
+    // Wrapper para que el controller pueda llamarlo si lo necesita
+    public void requireTenantAccess(Long tenantId, Long userId) {
+        authz.requireTenantAccess(tenantId, userId);
+    }
+
+    public List<Appointment> list(Long tenantId, Long userId) {
+        authz.requireTenantAccess(tenantId, userId);
+        return appointments.findByTenantId(tenantId);
+    }
+
     public Appointment create(Long tenantId, CreateAppointmentRequest req, Long userId) {
 
         Tenant tenant = tenants.findById(tenantId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business not found"));
 
+        // OJO: esto significa que si el tenant está ACTIVE, cualquiera puede crear cita.
+        // Si eso NO es lo que quieres, mueve authz.requireTenantAccess(...) fuera del if.
         if (tenant.getStatus() != TenantStatus.ACTIVE) {
             authz.requireTenantAccess(tenantId, userId);
         }
@@ -63,10 +76,12 @@ public class AppointmentService {
         String dateStr = req.getDate();
         String timeStr = req.getTime();
 
-        if (dateStr.isBlank())
+        if (dateStr.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "date required (yyyy-MM-dd)");
-        if (timeStr.isBlank())
+        }
+        if (timeStr.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "time required (HH:mm)");
+        }
         if (req.getClientName() == null || req.getClientName().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "clientName required");
         }
@@ -117,29 +132,40 @@ public class AppointmentService {
 
         authz.requireTenantAccess(tenantId, userId);
 
-        Appointment a = appointments.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Appointment not found"));
+        Appointment appt = appointments.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Appointment not found for this business"
+                ));
 
-        if (!a.getTenantId().equals(tenantId)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Appointment does not belong to tenant");
+        // opcional pero recomendado: evita estados raros / errores lógicos
+        if (appt.getStatus() == AppointmentStatus.APPROVED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Already approved");
+        }
+        if (appt.getStatus() == AppointmentStatus.REJECTED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Cannot approve a rejected appointment");
         }
 
-        a.setStatus(AppointmentStatus.APPROVED);
-        return appointments.save(a);
+        appt.setStatus(AppointmentStatus.APPROVED);
+        return appointments.save(appt);
     }
 
     public Appointment reject(Long tenantId, Long id, Long userId) {
 
         authz.requireTenantAccess(tenantId, userId);
 
-        Appointment a = appointments.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Appointment not found"));
+        Appointment appt = appointments.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Appointment not found for this business"
+                ));
 
-        if (!a.getTenantId().equals(tenantId)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Appointment does not belong to tenant");
+        if (appt.getStatus() == AppointmentStatus.REJECTED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Already rejected");
+        }
+        if (appt.getStatus() == AppointmentStatus.APPROVED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Cannot reject an approved appointment");
         }
 
-        a.setStatus(AppointmentStatus.REJECTED);
-        return appointments.save(a);
+        appt.setStatus(AppointmentStatus.REJECTED);
+        return appointments.save(appt);
     }
 }

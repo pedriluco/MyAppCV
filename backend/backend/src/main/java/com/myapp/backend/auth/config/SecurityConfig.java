@@ -25,14 +25,13 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+                .securityMatcher("/**")
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> {})
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .httpBasic(b -> b.disable())
                 .formLogin(f -> f.disable())
                 .authorizeHttpRequests(auth -> auth
-
-                        // Públicos
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/tenants/**").permitAll()
@@ -44,10 +43,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/businesses/*/appointments/*/approve")
                         .hasAnyRole("OWNER", "ADMIN")
 
+                        // 🔴 ÚNICO CAMBIO
                         .requestMatchers(HttpMethod.POST, "/businesses/*/appointments/*/reject")
-                        .hasAnyRole("OWNER", "ADMIN")
+                        .authenticated()
 
-                        // Todo lo demás requiere autenticación
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
@@ -65,3 +64,4 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 }
+

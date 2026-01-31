@@ -2,7 +2,7 @@ package com.example.myapp.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.myapp.network.ApiClient
+import com.example.myapp.data.repository.AppointmentRepository
 import com.example.myapp.network.CreateAppointmentRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,6 +14,9 @@ data class AppointmentUiState(
 )
 
 class AppointmentViewModel : ViewModel() {
+
+    // ✅ ahora sí se usa el repository
+    private val repository = AppointmentRepository()
 
     private val _uiState = MutableStateFlow(AppointmentUiState())
     val uiState = _uiState.asStateFlow()
@@ -30,7 +33,7 @@ class AppointmentViewModel : ViewModel() {
             _uiState.value = AppointmentUiState(isLoading = true, error = null)
 
             runCatching {
-                ApiClient.appointmentApi.create(
+                repository.create(
                     tenantId,
                     CreateAppointmentRequest(
                         tenantId = tenantId,

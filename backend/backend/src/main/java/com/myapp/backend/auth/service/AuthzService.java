@@ -26,50 +26,57 @@ public class AuthzService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
     }
 
+    private boolean isAdmin(Authentication auth) {
+        // LOG temporal (quítalo después)
+        System.out.println("AUTH=" + auth);
+        System.out.println("AUTH authorities=" + (auth != null ? auth.getAuthorities() : null));
+
+        return auth != null
+                && auth.isAuthenticated()
+                && auth.getAuthorities() != null
+                && auth.getAuthorities().stream().anyMatch(a ->
+                "ROLE_ADMIN".equals(a.getAuthority())
+                        || "ADMIN".equals(a.getAuthority())
+                        || "SCOPE_ADMIN".equals(a.getAuthority())
+        );
+    }
+
     public void requireTenantAccess(Long tenantId, Long userId) {
-        // 1) si no hay userId -> 401 (evita 500 / NPE)
         if (userId == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "No auth user");
         }
 
-        // 2) ADMIN bypass (no necesita membership)
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        boolean isAdmin =
-                auth != null
-                        && auth.isAuthenticated()
-                        && auth.getPrincipal() != null
-                        && !"anonymousUser".equals(auth.getPrincipal())
-                        && auth.getAuthorities().stream()
-                        .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+        System.out.println("AUTHZ requireTenantAccess tenantId=" + tenantId + " userId=" + userId
+                + " auth=" + (auth != null ? auth.getAuthorities() : null));
 
-        if (isAdmin) {
+        if (isAdmin(auth)) {
+            System.out.println("AUTHZ ADMIN BYPASS ✅");
             return;
         }
 
-        // 3) lógica normal (OWNER + membership)
         User user = requireUser(userId);
 
         if (user.getGlobalRole() != GlobalRole.OWNER) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Forbidden");
         }
 
         boolean ok = memberships.existsByUserIdAndBusinessId(userId, tenantId);
         if (!ok) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Forbidden");
         }
     }
 
     public void assertAdmin(Long userId) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null) {
+
+        if (auth == null || !auth.isAuthenticated() || auth.getAuthorities() == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "No auth");
         }
 
-        boolean ok = auth.getAuthorities().stream()
-                .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
-
-        if (!ok) {
+        if (!isAdmin(auth)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin only");
         }
     }
 }
+

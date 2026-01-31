@@ -3,9 +3,7 @@ package com.myapp.backend.appointments.controller;
 import com.myapp.backend.appointments.dto.AppointmentResponse;
 import com.myapp.backend.appointments.dto.CreateAppointmentRequest;
 import com.myapp.backend.appointments.entity.Appointment;
-import com.myapp.backend.appointments.repository.AppointmentRepository;
 import com.myapp.backend.appointments.service.AppointmentService;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,27 +13,26 @@ import java.util.List;
 @RequestMapping("/businesses/{tenantId}/appointments")
 public class AppointmentController {
 
-    private final AppointmentRepository repository;
     private final AppointmentService service;
 
-    public AppointmentController(
-            AppointmentRepository repository,
-            AppointmentService service
-    ) {
-        this.repository = repository;
+    public AppointmentController(AppointmentService service) {
         this.service = service;
     }
 
-    @PreAuthorize("hasAnyRole('OWNER','ADMIN')")
     @GetMapping
-    public List<AppointmentResponse> list(@PathVariable Long tenantId) {
-        return repository.findByTenantId(tenantId)
+    public List<AppointmentResponse> list(
+            @PathVariable Long tenantId,
+            Authentication authentication
+    ) {
+        Long userId = extractUserId(authentication);
+
+        return service.list(tenantId, userId)
                 .stream()
                 .map(this::toResponse)
                 .toList();
     }
 
-    // SIN @PreAuthorize("permitAll()") (sin anotación; lo controla SecurityConfig)
+    // sin anotación; lo controla SecurityConfig
     @PostMapping
     public AppointmentResponse create(
             @PathVariable Long tenantId,
@@ -48,7 +45,6 @@ public class AppointmentController {
         return toResponse(saved);
     }
 
-    @PreAuthorize("hasAnyRole('OWNER','ADMIN')")
     @PostMapping("/{id}/approve")
     public AppointmentResponse approve(
             @PathVariable Long tenantId,
@@ -56,11 +52,11 @@ public class AppointmentController {
             Authentication authentication
     ) {
         Long userId = extractUserId(authentication);
+
         Appointment saved = service.approve(tenantId, id, userId);
         return toResponse(saved);
     }
 
-    @PreAuthorize("hasAnyRole('OWNER','ADMIN')")
     @PostMapping("/{id}/reject")
     public AppointmentResponse reject(
             @PathVariable Long tenantId,
@@ -68,6 +64,7 @@ public class AppointmentController {
             Authentication authentication
     ) {
         Long userId = extractUserId(authentication);
+
         Appointment saved = service.reject(tenantId, id, userId);
         return toResponse(saved);
     }
