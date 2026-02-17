@@ -10,7 +10,8 @@ import com.example.myapp.viewmodel.AuthViewModel
 @Composable
 fun LoginScreen(
     vm: AuthViewModel,
-    onLoggedIn: () -> Unit
+    onLoggedIn: () -> Unit,
+    onGoToRegister: () -> Unit
 ) {
     val state by vm.state.collectAsState()
 
@@ -50,6 +51,13 @@ fun LoginScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(if (state.loading) "Entrando..." else "Entrar")
+        }
+
+        TextButton(
+            onClick = onGoToRegister,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Crear cuenta")
         }
     }
 }

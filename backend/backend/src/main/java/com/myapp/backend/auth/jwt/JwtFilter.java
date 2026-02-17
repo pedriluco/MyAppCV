@@ -35,9 +35,6 @@ public class JwtFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
-        // DIAGNOSTICO: path y método que llegan al filtro
-        System.out.println("PATH=" + request.getServletPath() + " METHOD=" + request.getMethod());
-
         String header = request.getHeader("Authorization");
 
         if (header == null || !header.startsWith("Bearer ")) {
@@ -46,6 +43,8 @@ public class JwtFilter extends OncePerRequestFilter {
         }
 
         String token = header.substring(7);
+
+        System.out.println("JWT HIT " + request.getMethod() + " " + request.getServletPath());
 
         try {
             Claims claims = jwtService.extractClaims(token);
@@ -57,7 +56,7 @@ public class JwtFilter extends OncePerRequestFilter {
             role = role.toUpperCase();
             if (!role.startsWith("ROLE_")) role = "ROLE_" + role;
 
-            System.out.println("JWT role claim=" + claims.get("role", String.class) + " -> authority=" + role);
+            System.out.println("JWT OK userId=" + userId + " authority=" + role);
 
             var auth = new UsernamePasswordAuthenticationToken(
                     userId,
@@ -65,17 +64,11 @@ public class JwtFilter extends OncePerRequestFilter {
                     List.of(new SimpleGrantedAuthority(role))
             );
 
-            // DIAGNOSTICO: confirma que sí se setea authentication
-            System.out.println("JWT OK userId=" + userId + " authority=" + role + " path=" + request.getServletPath());
-
             SecurityContextHolder.getContext().setAuthentication(auth);
 
         } catch (Exception e) {
-            // DIAGNOSTICO: confirma caída del JWT (exp, firma, etc)
             System.out.println(
-                    "JWT FAIL path=" + request.getServletPath() +
-                            " err=" + e.getClass().getSimpleName() +
-                            ": " + e.getMessage()
+                    "JWT FAIL " + e.getClass().getSimpleName() + " " + e.getMessage()
             );
             SecurityContextHolder.clearContext();
         }
@@ -83,4 +76,3 @@ public class JwtFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 }
-

@@ -19,15 +19,16 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun AdminRequestsScreen(
     navController: NavController,
-    tenantVm: TenantViewModel = viewModel()
+    tenantVm: TenantViewModel = viewModel(),
+    role: String
 ) {
     val state by tenantVm.uiState.collectAsState()
 
     LaunchedEffect(Unit) {
-        tenantVm.loadAllTenants()
+        tenantVm.loadPendingTenants()
     }
 
-    val pending = state.tenants.filter { (it.status ?: "PENDING") == "PENDING" }
+    val pending = state.tenants
 
     ScreenScaffold(
         title = "Solicitudes",
@@ -36,7 +37,7 @@ fun AdminRequestsScreen(
         scroll = false,
         actions = {
             if (!state.isLoading) {
-                TextButton(onClick = { tenantVm.loadAllTenants() }) { Text("Recargar") }
+                TextButton(onClick = { tenantVm.loadPendingTenants() }) { Text("Recargar") }
             }
         }
     ) {

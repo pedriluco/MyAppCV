@@ -14,10 +14,35 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
 
     Optional<Appointment> findByIdAndTenantId(Long id, Long tenantId);
 
-    // ✅ no-overlap real: buscar APPROVED que se traslape
+    List<Appointment> findByTenantIdAndStartAtBetween(
+            Long tenantId,
+            LocalDateTime start,
+            LocalDateTime end
+    );
+
+    List<Appointment> findByTenantIdAndStartAtBetweenOrderByStartAtAsc(
+            Long tenantId,
+            LocalDateTime start,
+            LocalDateTime end
+    );
+
+    List<Appointment> findByTenantIdAndStartAtBetweenAndStatusInOrderByStartAtAsc(
+            Long tenantId,
+            LocalDateTime start,
+            LocalDateTime end,
+            List<AppointmentStatus> statuses
+    );
+
     boolean existsByTenantIdAndStatusAndStartAtLessThanAndEndAtGreaterThan(
             Long tenantId,
             AppointmentStatus status,
+            LocalDateTime endAt,
+            LocalDateTime startAt
+    );
+
+    boolean existsByTenantIdAndStatusInAndStartAtLessThanAndEndAtGreaterThan(
+            Long tenantId,
+            List<AppointmentStatus> statuses,
             LocalDateTime endAt,
             LocalDateTime startAt
     );

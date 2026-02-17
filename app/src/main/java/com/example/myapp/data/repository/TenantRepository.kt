@@ -13,6 +13,10 @@ class TenantRepository {
         return ApiClient.tenantApi.getAllTenants()
     }
 
+    suspend fun getPendingTenants(): List<Tenant> {
+        return ApiClient.tenantApi.getPendingTenants()
+    }
+
     suspend fun searchTenants(query: String): List<Tenant> {
         return ApiClient.tenantApi.searchTenants(query)
     }
@@ -20,5 +24,4 @@ class TenantRepository {
     suspend fun approveTenant(id: Long): Tenant {
         return ApiClient.tenantApi.approveTenant(id)
     }
-
 }

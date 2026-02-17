@@ -15,18 +15,18 @@ import com.example.myapp.ui.CenterText
 import com.example.myapp.ui.ScreenScaffold
 import com.example.myapp.ui.Ui
 import com.example.myapp.viewmodel.BusinessHoursViewModel
-import androidx.compose.ui.text.input.KeyboardType
 import com.example.myapp.network.BusinessHoursDto
-
-
 
 @Composable
 fun BusinessHoursScreen(
     navController: NavController,
     tenantId: Long,
+    role: String,
     vm: BusinessHoursViewModel = viewModel()
 ) {
     val state by vm.state.collectAsState()
+
+    val canManage = role == "OWNER" || role == "ADMIN"
 
     LaunchedEffect(tenantId) {
         vm.load(tenantId)
@@ -39,7 +39,10 @@ fun BusinessHoursScreen(
         scroll = false,
         actions = {
             TextButton(onClick = { vm.load(tenantId) }, enabled = !state.saving) { Text("Recargar") }
-            TextButton(onClick = { vm.saveAndReload(tenantId) }, enabled = !state.saving) { Text("Guardar") }
+            TextButton(
+                onClick = { vm.saveAndReload(tenantId) },
+                enabled = canManage && !state.saving
+            ) { Text("Guardar") }
         }
     ) {
         when {
@@ -74,6 +77,7 @@ fun BusinessHoursScreen(
                     itemsIndexed(state.items) { index, item ->
                         HoursItemCard(
                             item = item,
+                            canManage = canManage,
                             onChange = { updated ->
                                 val newList = state.items.toMutableList()
                                 newList[index] = updated
@@ -90,6 +94,7 @@ fun BusinessHoursScreen(
 @Composable
 private fun HoursItemCard(
     item: BusinessHoursDto,
+    canManage: Boolean,
     onChange: (BusinessHoursDto) -> Unit
 ) {
     AppCard {
@@ -115,7 +120,8 @@ private fun HoursItemCard(
                             )
                         )
                     }
-                }
+                },
+                enabled = canManage
             )
         }
 
@@ -132,6 +138,7 @@ private fun HoursItemCard(
                     label = { Text("Abre") },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
+                    enabled = canManage
                 )
                 OutlinedTextField(
                     value = item.closeTime ?: "",
@@ -141,6 +148,7 @@ private fun HoursItemCard(
                     label = { Text("Cierra") },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
+                    enabled = canManage
                 )
             }
 

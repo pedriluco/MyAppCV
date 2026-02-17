@@ -22,9 +22,12 @@ import com.example.myapp.viewmodel.ServiceViewModel
 fun ServicesScreen(
     navController: NavController,
     tenantId: Long,
+    role: String,
     vm: ServiceViewModel = viewModel()
 ) {
     val state by vm.state.collectAsState()
+
+    val canManage = role == "OWNER" || role == "ADMIN"
 
     LaunchedEffect(tenantId) {
         vm.load(tenantId)
@@ -39,10 +42,10 @@ fun ServicesScreen(
         scroll = false,
         actions = {
             TextButton(onClick = { vm.load(tenantId) }) { Text("Recargar") }
-            TextButton(onClick = { showCreate = true }) { Text("Agregar") }
+            TextButton(onClick = { showCreate = true }, enabled = canManage) { Text("Agregar") }
         }
     ) {
-        if (showCreate) {
+        if (showCreate && canManage) {
             CreateServiceCard(
                 creating = state.creating,
                 onCancel = { showCreate = false },
@@ -82,11 +85,14 @@ fun ServicesScreen(
                     items(state.items) { s ->
                         ServiceItemCard(
                             service = s,
+                            canManage = canManage,
                             onToggle = { vm.toggleActive(tenantId, s) },
                             onClick = {
-                                navController.navigate(
-                                    Routes.createAppointment(tenantId, "ACTIVE")
-                                )
+                                if (s.active) {
+                                    navController.navigate(
+                                        Routes.createAppointment(tenantId, "ACTIVE")
+                                    )
+                                }
                             }
                         )
                     }
@@ -99,6 +105,7 @@ fun ServicesScreen(
 @Composable
 private fun ServiceItemCard(
     service: ServiceDto,
+    canManage: Boolean,
     onToggle: () -> Unit,
     onClick: () -> Unit
 ) {
@@ -108,7 +115,7 @@ private fun ServiceItemCard(
         Text(service.name, style = MaterialTheme.typography.titleMedium)
         Text("Duración: ${service.durationMinutes} min", style = MaterialTheme.typography.bodyMedium)
         Text(
-            text = if (service.active) "Activo" else "Inactivo",
+            text = if (service.active) "Activo" else "Inactivo (no agendable)",
             style = MaterialTheme.typography.bodySmall
         )
 
@@ -120,6 +127,7 @@ private fun ServiceItemCard(
         ) {
             OutlinedButton(
                 onClick = onToggle,
+                enabled = canManage,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(if (service.active) "Desactivar" else "Activar")

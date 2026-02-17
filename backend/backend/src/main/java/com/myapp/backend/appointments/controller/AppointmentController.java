@@ -19,20 +19,31 @@ public class AppointmentController {
         this.service = service;
     }
 
+    // ✅ NUEVO: availability (sin requireTenantAccess / sin userId)
+    @GetMapping("/availability")
+    public List<AppointmentResponse> availability(
+            @PathVariable Long tenantId,
+            @RequestParam String date
+    ) {
+        List<Appointment> items = service.availabilityByDate(tenantId, date.trim());
+        return items.stream().map(this::toResponse).toList();
+    }
+
     @GetMapping
     public List<AppointmentResponse> list(
             @PathVariable Long tenantId,
+            @RequestParam(required = false) String date,
             Authentication authentication
     ) {
         Long userId = extractUserId(authentication);
 
-        return service.list(tenantId, userId)
-                .stream()
-                .map(this::toResponse)
-                .toList();
+        List<Appointment> items = (date == null || date.isBlank())
+                ? service.listAll(tenantId, userId)
+                : service.listByDate(tenantId, date.trim(), userId);
+
+        return items.stream().map(this::toResponse).toList();
     }
 
-    // sin anotación; lo controla SecurityConfig
     @PostMapping
     public AppointmentResponse create(
             @PathVariable Long tenantId,

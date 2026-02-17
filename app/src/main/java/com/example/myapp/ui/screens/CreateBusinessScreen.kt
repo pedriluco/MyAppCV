@@ -12,12 +12,13 @@ import com.example.myapp.viewmodel.TenantViewModel
 @Composable
 fun CreateBusinessScreen(
     onBack: () -> Unit,
-    tenantViewModel: TenantViewModel = viewModel()
+    tenantViewModel: TenantViewModel = viewModel(),
+    role: String
 ) {
     var businessName by remember { mutableStateOf("") }
     val uiState by tenantViewModel.uiState.collectAsState()
 
-    // Si se creó OK, regresa a Home
+    // Si se creó OK, regresa
     LaunchedEffect(uiState.justCreated) {
         if (uiState.justCreated) {
             businessName = ""
@@ -46,27 +47,33 @@ fun CreateBusinessScreen(
                 value = businessName,
                 onValueChange = { businessName = it },
                 label = { Text("Nombre del negocio") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
             )
 
             Spacer(Modifier.height(12.dp))
 
             Button(
                 onClick = {
-                    if (businessName.isNotBlank()) {
-                        tenantViewModel.createTenant(businessName)
+                    val name = businessName.trim()
+                    if (name.isNotBlank() && !uiState.isLoading) {
+                        tenantViewModel.createTenant(name)
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !uiState.isLoading
+                enabled = !uiState.isLoading && businessName.trim().isNotBlank()
             ) {
                 Text(if (uiState.isLoading) "Creando..." else "Crear")
             }
 
-            uiState.error?.let {
+            uiState.error?.let { err ->
                 Spacer(Modifier.height(12.dp))
-                Text(it, color = MaterialTheme.colorScheme.error)
+                Text(err, color = MaterialTheme.colorScheme.error)
             }
+
+            // (Opcional) Si quieres verificar el rol para debug
+            // Spacer(Modifier.height(12.dp))
+            // Text("Role: $role", style = MaterialTheme.typography.bodySmall)
         }
     }
 }

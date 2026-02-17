@@ -7,6 +7,7 @@ import com.example.myapp.network.AppointmentDto
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
 
 data class AgendaUiState(
     val loading: Boolean = false,
@@ -26,15 +27,16 @@ class AgendaViewModel : ViewModel() {
             runCatching {
                 ApiClient.appointmentApi.list(tenantId)
             }.onSuccess { list ->
+                val sorted = list.sortedBy { it.startAt }
                 _state.value = _state.value.copy(
                     loading = false,
                     error = null,
-                    items = list
+                    items = sorted
                 )
             }.onFailure { e ->
                 _state.value = _state.value.copy(
                     loading = false,
-                    error = e.message ?: "Error"
+                    error = throwableMessage(e)
                 )
             }
         }
@@ -51,7 +53,7 @@ class AgendaViewModel : ViewModel() {
             }.onFailure { e ->
                 _state.value = _state.value.copy(
                     savingId = null,
-                    error = e.message ?: "Error"
+                    error = throwableMessage(e)
                 )
             }
         }
@@ -68,9 +70,31 @@ class AgendaViewModel : ViewModel() {
             }.onFailure { e ->
                 _state.value = _state.value.copy(
                     savingId = null,
-                    error = e.message ?: "Error"
+                    error = throwableMessage(e)
                 )
             }
+        }
+    }
+
+    private fun throwableMessage(t: Throwable): String {
+        return when (t) {
+            is HttpException -> {
+                val code = t.code()
+                val body = runCatching { t.response()?.errorBody()?.string() }.getOrNull().orEmpty()
+
+                // intenta sacar "message":"..."
+                val msg = Regex(""""message"\s*:\s*"([^"]+)"""")
+                    .find(body)
+                    ?.groupValues
+                    ?.getOrNull(1)
+
+                when {
+                    !msg.isNullOrBlank() -> "HTTP $code: $msg"
+                    body.isNotBlank() -> "HTTP $code"
+                    else -> "HTTP $code"
+                }
+            }
+            else -> t.message ?: "Error"
         }
     }
 }

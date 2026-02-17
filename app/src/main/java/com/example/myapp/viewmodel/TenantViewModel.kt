@@ -41,6 +41,21 @@ class TenantViewModel : ViewModel() {
         }
     }
 
+    fun loadPendingTenants() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            try {
+                val list = repository.getPendingTenants()
+                _uiState.value = _uiState.value.copy(isLoading = false, tenants = list)
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = e.message ?: "Error cargando negocios pendientes"
+                )
+            }
+        }
+    }
+
     fun createTenant(name: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null, justCreated = false)
@@ -97,3 +112,4 @@ class TenantViewModel : ViewModel() {
         }
     }
 }
+

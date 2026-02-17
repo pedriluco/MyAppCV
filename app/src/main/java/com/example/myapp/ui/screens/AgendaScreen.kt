@@ -14,20 +14,34 @@ import com.example.myapp.ui.CenterLoading
 import com.example.myapp.ui.CenterText
 import com.example.myapp.ui.ScreenScaffold
 import com.example.myapp.ui.Ui
-import com.example.myapp.viewmodel.AgendaViewModel
 import com.example.myapp.utils.DateFormatUtils
-
+import com.example.myapp.viewmodel.AgendaViewModel
 
 @Composable
 fun AgendaScreen(
     navController: NavController,
     tenantId: Long,
+    role: String,
     vm: AgendaViewModel = viewModel()
 ) {
     val state by vm.state.collectAsState()
 
+    val canModerate = role == "OWNER" || role == "ADMIN"
+
+    val refresh = navController.currentBackStackEntry
+        ?.savedStateHandle
+        ?.getStateFlow("refreshAgenda", false)
+        ?.collectAsState()
+
     LaunchedEffect(tenantId) {
         vm.load(tenantId)
+    }
+
+    LaunchedEffect(refresh?.value) {
+        if (refresh?.value == true) {
+            vm.load(tenantId)
+            navController.currentBackStackEntry?.savedStateHandle?.set("refreshAgenda", false)
+        }
     }
 
     ScreenScaffold(
@@ -36,8 +50,11 @@ fun AgendaScreen(
         onBack = { navController.popBackStack() },
         scroll = false,
         actions = {
-            if (!state.loading && state.savingId == null) {
-                TextButton(onClick = { vm.load(tenantId) }) { Text("Recargar") }
+            TextButton(
+                onClick = { vm.load(tenantId) },
+                enabled = !state.loading && state.savingId == null
+            ) {
+                Text("Recargar")
             }
         }
     ) {
@@ -56,7 +73,9 @@ fun AgendaScreen(
                     Button(
                         onClick = { vm.load(tenantId) },
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text("Reintentar") }
+                    ) {
+                        Text("Reintentar")
+                    }
                 }
             }
 
@@ -71,7 +90,7 @@ fun AgendaScreen(
                 ) {
                     items(state.items) { a ->
                         val isSavingThis = state.savingId == a.id
-                        val canDecide = a.status == "REQUESTED"
+                        val canDecide = canModerate && a.status == "REQUESTED"
 
                         AppCard {
                             Text(
@@ -98,13 +117,17 @@ fun AgendaScreen(
                                         onClick = { vm.reject(tenantId, a.id) },
                                         enabled = !isSavingThis && state.savingId == null,
                                         modifier = Modifier.weight(1f)
-                                    ) { Text("Rechazar") }
+                                    ) {
+                                        Text("Rechazar")
+                                    }
 
                                     Button(
                                         onClick = { vm.approve(tenantId, a.id) },
                                         enabled = !isSavingThis && state.savingId == null,
                                         modifier = Modifier.weight(1f)
-                                    ) { Text("Aprobar") }
+                                    ) {
+                                        Text("Aprobar")
+                                    }
                                 }
                             }
 

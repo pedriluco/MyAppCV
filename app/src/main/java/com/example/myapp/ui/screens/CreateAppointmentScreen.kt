@@ -1,30 +1,13 @@
 package com.example.myapp.ui.screens
 
 import android.app.DatePickerDialog
-import android.app.TimePickerDialog
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.*
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.MenuAnchorType
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -33,6 +16,7 @@ import androidx.navigation.NavController
 import com.example.myapp.ui.AppCard
 import com.example.myapp.ui.CenterLoading
 import com.example.myapp.ui.ScreenScaffold
+import com.example.myapp.ui.Routes
 import com.example.myapp.ui.Ui
 import com.example.myapp.viewmodel.CreateAppointmentViewModel
 import java.util.Calendar
@@ -44,12 +28,15 @@ fun CreateAppointmentScreen(
     tenantId: Long,
     tenantStatus: String,
     navController: NavController,
+    role: String,
     vm: CreateAppointmentViewModel = viewModel()
 ) {
     val state by vm.state.collectAsState()
     val context = LocalContext.current
 
     val isActive = tenantStatus == "ACTIVE"
+    val isOwnerOrAdmin = role == "OWNER" || role == "ADMIN"
+
     var clientName by remember { mutableStateOf("") }
     val cal = remember { Calendar.getInstance() }
 
@@ -68,7 +55,10 @@ fun CreateAppointmentScreen(
         DatePickerDialog(
             context,
             { _, yy, mm, dd ->
-                vm.setDate(String.format(Locale.US, "%04d-%02d-%02d", yy, mm + 1, dd))
+                vm.setDate(
+                    tenantId,
+                    String.format(Locale.US, "%04d-%02d-%02d", yy, mm + 1, dd)
+                )
             },
             y, m, d
         ).apply {
@@ -76,42 +66,19 @@ fun CreateAppointmentScreen(
         }.show()
     }
 
-    fun pickTime() {
-        if (state.selectedService == null || state.date.isBlank()) return
+    val slots = remember(
+        state.date,
+        state.selectedService?.id,
+        state.dayHours,
+        state.dayAppointments
+    ) {
+        vm.allowedSlots(step = 10)
+    }
 
-        val limits = vm.allowedTimeWindowMinutes()
-        if (limits == null) {
-            vm.setTime("")
-            return
-        }
+    var slotsExpanded by remember { mutableStateOf(false) }
 
-        val (minStart, maxStart) = limits
-
-        val current = state.time.takeIf { it.isNotBlank() }?.let { t ->
-            val parts = t.split(":")
-            if (parts.size == 2) (parts[0].toInt() * 60 + parts[1].toInt()) else null
-        }
-
-        val start = when {
-            current == null -> minStart
-            current < minStart -> minStart
-            current > maxStart -> maxStart
-            else -> current
-        }
-
-        val hh = start / 60
-        val mm = start % 60
-
-        TimePickerDialog(
-            context,
-            { _, h, m ->
-                val candidate = String.format(Locale.US, "%02d:%02d", h, m)
-                vm.setTime(candidate)
-            },
-            hh,
-            mm,
-            true
-        ).show()
+    LaunchedEffect(state.date, state.selectedService?.id) {
+        slotsExpanded = false
     }
 
     val endPreview = vm.computeEndTimePreview()
@@ -130,9 +97,13 @@ fun CreateAppointmentScreen(
         onBack = { navController.popBackStack() },
         scroll = false,
         actions = {
-            if (isActive && !state.loading) {
-                TextButton(onClick = { vm.loadServices(tenantId) }) { Text("Servicios") }
-                TextButton(onClick = { vm.loadHours(tenantId) }) { Text("Horarios") }
+            if (isActive && isOwnerOrAdmin) {
+                TextButton(onClick = { navController.navigate(Routes.services(tenantId)) }) {
+                    Text("Servicios")
+                }
+                TextButton(onClick = { navController.navigate(Routes.hours(tenantId)) }) {
+                    Text("Horarios")
+                }
             }
         }
     ) {
@@ -184,10 +155,10 @@ fun CreateAppointmentScreen(
                     enabled = !state.loading,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .menuAnchor()
+                        .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = !state.loading)
                 )
 
-                ExposedDropdownMenu(
+                DropdownMenu(
                     expanded = expanded,
                     onDismissRequest = { expanded = false }
                 ) {
@@ -195,7 +166,7 @@ fun CreateAppointmentScreen(
                         DropdownMenuItem(
                             text = { Text("${s.name} (${s.durationMinutes} min)") },
                             onClick = {
-                                vm.selectService(s)
+                                vm.selectService(tenantId, s)
                                 expanded = false
                             }
                         )
@@ -226,6 +197,12 @@ fun CreateAppointmentScreen(
 
             Spacer(Modifier.height(10.dp))
 
+            val canPickSlot =
+                !state.loading &&
+                        state.date.isNotBlank() &&
+                        state.selectedService != null &&
+                        slots.isNotEmpty()
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -234,13 +211,57 @@ fun CreateAppointmentScreen(
                     onClick = { pickDate() },
                     enabled = !state.loading,
                     modifier = Modifier.weight(1f)
-                ) { Text(if (state.date.isBlank()) "Fecha" else state.date) }
+                ) {
+                    Text(if (state.date.isBlank()) "Fecha" else state.date)
+                }
 
-                OutlinedButton(
-                    onClick = { pickTime() },
-                    enabled = !state.loading && state.date.isNotBlank() && state.selectedService != null,
+                ExposedDropdownMenuBox(
+                    expanded = slotsExpanded,
+                    onExpandedChange = { if (canPickSlot) slotsExpanded = !slotsExpanded },
                     modifier = Modifier.weight(1f)
-                ) { Text(if (state.time.isBlank()) "Hora" else state.time) }
+                ) {
+                    OutlinedTextField(
+                        value = state.time,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Hora disponible") },
+                        placeholder = { Text(if (slots.isEmpty()) "Sin horarios" else "Selecciona") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(slotsExpanded) },
+                        enabled = canPickSlot,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = canPickSlot)
+                    )
+
+                    DropdownMenu(
+                        expanded = slotsExpanded,
+                        onDismissRequest = { slotsExpanded = false }
+                    ) {
+                        slots.forEach { hhmm ->
+                            DropdownMenuItem(
+                                text = { Text(hhmm) },
+                                onClick = {
+                                    vm.setTime(hhmm)
+                                    slotsExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (
+                state.date.isNotBlank() &&
+                state.selectedService != null &&
+                slots.isEmpty() &&
+                state.dayHours?.closed == false
+            ) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "No hay horarios disponibles (ocupado o no cabe la duración).",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium
+                )
             }
 
             if (isPast && state.date.isNotBlank() && state.time.isNotBlank()) {
@@ -272,8 +293,13 @@ fun CreateAppointmentScreen(
                 onClick = {
                     vm.create(
                         tenantId = tenantId,
-                        clientName = clientName,
-                        onSuccess = { navController.popBackStack() }
+                        clientName = clientName.trim(),
+                        onSuccess = {
+                            navController.previousBackStackEntry
+                                ?.savedStateHandle
+                                ?.set("refreshAgenda", true)
+                            navController.popBackStack()
+                        }
                     )
                 },
                 enabled = canSubmit,

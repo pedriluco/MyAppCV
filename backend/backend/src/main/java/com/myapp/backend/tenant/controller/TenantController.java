@@ -44,4 +44,10 @@ public class TenantController {
     public List<Tenant> search(@RequestParam String q) {
         return service.searchActive(q);
     }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/pending")
+    public List<Tenant> pending() {
+        return service.getPending();
+    }
 }

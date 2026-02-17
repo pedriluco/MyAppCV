@@ -25,7 +25,6 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .securityMatcher("/**")
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> {})
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -35,17 +34,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/tenants/**").permitAll()
+                        .requestMatchers("/error").permitAll()
 
-                        // Appointments
-                        .requestMatchers(HttpMethod.POST, "/businesses/*/appointments")
-                        .hasAnyRole("USER", "OWNER", "ADMIN")
+                        // ✅ NUEVO: availability requiere JWT válido (authenticated), sin rol especial
+                        .requestMatchers(HttpMethod.GET, "/businesses/*/appointments/availability").authenticated()
 
-                        .requestMatchers(HttpMethod.POST, "/businesses/*/appointments/*/approve")
+                        .requestMatchers(HttpMethod.PATCH, "/businesses/*/services/*/active")
                         .hasAnyRole("OWNER", "ADMIN")
-
-                        // 🔴 ÚNICO CAMBIO
-                        .requestMatchers(HttpMethod.POST, "/businesses/*/appointments/*/reject")
-                        .authenticated()
 
                         .anyRequest().authenticated()
                 )
@@ -64,4 +59,3 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 }
-

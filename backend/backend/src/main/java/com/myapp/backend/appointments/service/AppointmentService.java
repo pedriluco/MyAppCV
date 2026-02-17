@@ -44,14 +44,52 @@ public class AppointmentService {
         this.authz = authz;
     }
 
-    // Wrapper para que el controller pueda llamarlo si lo necesita
     public void requireTenantAccess(Long tenantId, Long userId) {
         authz.requireTenantAccess(tenantId, userId);
     }
 
-    public List<Appointment> list(Long tenantId, Long userId) {
+    public List<Appointment> listAll(Long tenantId, Long userId) {
         authz.requireTenantAccess(tenantId, userId);
         return appointments.findByTenantId(tenantId);
+    }
+
+    public List<Appointment> listByDate(Long tenantId, String date, Long userId) {
+        authz.requireTenantAccess(tenantId, userId);
+
+        LocalDate d = LocalDate.parse(date);
+        LocalDateTime start = d.atStartOfDay();
+        LocalDateTime end = d.plusDays(1).atStartOfDay();
+
+        return appointments.findByTenantIdAndStartAtBetweenAndStatusInOrderByStartAtAsc(
+                tenantId,
+                start,
+                end,
+                List.of(AppointmentStatus.APPROVED, AppointmentStatus.REQUESTED)
+        );
+    }
+
+    // ✅ NUEVO: availability SIN requireTenantAccess
+    public List<Appointment> availabilityByDate(Long tenantId, String date) {
+
+        Tenant tenant = tenants.findById(tenantId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Business not found"
+                ));
+
+        if (tenant.getStatus() != TenantStatus.ACTIVE) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Business not active");
+        }
+
+        LocalDate d = LocalDate.parse(date);
+        LocalDateTime start = d.atStartOfDay();
+        LocalDateTime end = d.plusDays(1).atStartOfDay();
+
+        return appointments.findByTenantIdAndStartAtBetweenAndStatusInOrderByStartAtAsc(
+                tenantId,
+                start,
+                end,
+                List.of(AppointmentStatus.APPROVED, AppointmentStatus.REQUESTED)
+        );
     }
 
     public Appointment create(Long tenantId, CreateAppointmentRequest req, Long userId) {
@@ -59,8 +97,6 @@ public class AppointmentService {
         Tenant tenant = tenants.findById(tenantId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business not found"));
 
-        // OJO: esto significa que si el tenant está ACTIVE, cualquiera puede crear cita.
-        // Si eso NO es lo que quieres, mueve authz.requireTenantAccess(...) fuera del if.
         if (tenant.getStatus() != TenantStatus.ACTIVE) {
             authz.requireTenantAccess(tenantId, userId);
         }
@@ -117,6 +153,17 @@ public class AppointmentService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Appointment exceeds business hours");
         }
 
+        boolean clash = appointments.existsByTenantIdAndStatusInAndStartAtLessThanAndEndAtGreaterThan(
+                tenantId,
+                List.of(AppointmentStatus.APPROVED, AppointmentStatus.REQUESTED),
+                endAt,
+                startAt
+        );
+
+        if (clash) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Time slot already taken");
+        }
+
         Appointment a = new Appointment();
         a.setTenantId(tenantId);
         a.setServiceId(service.getId());
@@ -137,7 +184,6 @@ public class AppointmentService {
                         HttpStatus.NOT_FOUND, "Appointment not found for this business"
                 ));
 
-        // opcional pero recomendado: evita estados raros / errores lógicos
         if (appt.getStatus() == AppointmentStatus.APPROVED) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Already approved");
         }
@@ -169,3 +215,4 @@ public class AppointmentService {
         return appointments.save(appt);
     }
 }
+

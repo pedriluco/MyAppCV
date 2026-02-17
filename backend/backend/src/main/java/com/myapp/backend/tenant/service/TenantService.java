@@ -33,6 +33,10 @@ public class TenantService {
         return tenants.findAll();
     }
 
+    public List<Tenant> getPending() {
+        return tenants.findByStatus(TenantStatus.PENDING);
+    }
+
     public Tenant create(Tenant tenant, Long userId) {
 
         tenant.setStatus(TenantStatus.PENDING);
