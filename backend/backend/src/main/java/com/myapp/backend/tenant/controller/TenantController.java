@@ -22,21 +22,25 @@ public class TenantController {
     @PreAuthorize("hasAnyRole('OWNER','ADMIN')")
     @PostMapping
     public Tenant create(@RequestBody Tenant tenant, Authentication authentication) {
-        Long userId = (Long) authentication.getPrincipal();
+
+        Object p = authentication.getPrincipal();
+        Long userId = (p instanceof Long) ? (Long) p : Long.valueOf(p.toString());
+
         return service.create(tenant, userId);
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/{id}/approve")
     public Tenant approve(@PathVariable Long id, Authentication authentication) {
-        Long userId = (Long) authentication.getPrincipal();
+        Object p = authentication.getPrincipal();
+        Long userId = (p instanceof Long) ? (Long) p : Long.valueOf(p.toString());
         return service.approve(id, userId);
     }
 
     @PreAuthorize("hasAnyRole('USER','OWNER','ADMIN')")
     @GetMapping
     public List<Tenant> getAll() {
-        return service.getAll();
+        return service.searchActive("");
     }
 
     @PreAuthorize("hasAnyRole('USER','OWNER','ADMIN')")
@@ -49,5 +53,13 @@ public class TenantController {
     @GetMapping("/pending")
     public List<Tenant> pending() {
         return service.getPending();
+    }
+
+    @PreAuthorize("hasAnyRole('OWNER','ADMIN')")
+    @GetMapping("/mine")
+    public List<Tenant> mine(Authentication authentication) {
+        Object p = authentication.getPrincipal();
+        Long userId = (p instanceof Long) ? (Long) p : Long.valueOf(p.toString());
+        return service.getMine(userId);
     }
 }

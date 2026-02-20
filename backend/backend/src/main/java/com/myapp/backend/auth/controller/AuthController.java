@@ -7,7 +7,6 @@ import com.myapp.backend.auth.entity.GlobalRole;
 import com.myapp.backend.auth.entity.User;
 import com.myapp.backend.auth.jwt.JwtService;
 import com.myapp.backend.auth.repository.UserRepository;
-import com.myapp.backend.tenant.entity.Tenant;
 import com.myapp.backend.tenant.service.TenantService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -89,26 +88,11 @@ public class AuthController {
 
         users.save(user);
 
-        Long tenantId = null;
-
-        // Si es OWNER: crear Tenant PENDING
-        if (roleStr.equals("OWNER")) {
-            String bn = req.getBusinessName();
-
-            if (bn == null || bn.isBlank()) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "businessName required for OWNER");
-            }
-
-            Tenant tenant = new Tenant(bn.trim());
-            tenantId = tenantService.create(tenant, user.getId()).getId();
-        }
-
         String token = jwt.generateToken(
                 user.getId(),
                 user.getGlobalRole().name()
         );
 
-        return ResponseEntity.ok(new AuthResponse(token, tenantId));
+        return ResponseEntity.ok(new AuthResponse(token, null));
     }
 }
-

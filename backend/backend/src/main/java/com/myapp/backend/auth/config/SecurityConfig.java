@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -13,6 +14,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+@EnableMethodSecurity
 @Configuration
 public class SecurityConfig {
 
@@ -33,12 +35,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/auth/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/tenants/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/tenants/search").permitAll()
                         .requestMatchers("/error").permitAll()
 
-                        // ✅ NUEVO: availability requiere JWT válido (authenticated), sin rol especial
                         .requestMatchers(HttpMethod.GET, "/businesses/*/appointments/availability").authenticated()
-
                         .requestMatchers(HttpMethod.PATCH, "/businesses/*/services/*/active")
                         .hasAnyRole("OWNER", "ADMIN")
 
@@ -59,3 +59,4 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 }
+

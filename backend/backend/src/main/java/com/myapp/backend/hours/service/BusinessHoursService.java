@@ -27,20 +27,32 @@ public class BusinessHoursService {
     public void upsert(Long tenantId, BusinessHoursRequest req, Long userId) {
         authz.requireTenantAccess(tenantId, userId);
 
-        BusinessHours hours = repository
-                .findByTenantIdAndDayOfWeek(tenantId, req.dayOfWeek)
-                .orElseGet(() -> {
-                    BusinessHours h = new BusinessHours();
-                    h.setTenantId(tenantId);
-                    h.setDayOfWeek(req.dayOfWeek);
-                    return h;
-                });
+        if (req == null || req.items == null) return;
 
-        hours.setOpenTime(req.openTime);
-        hours.setCloseTime(req.closeTime);
-        hours.setClosed(req.closed != null && req.closed);
+        for (BusinessHoursRequest.Item it : req.items) {
+            if (it == null || it.dayOfWeek == null) continue;
 
-        repository.save(hours);
+            BusinessHours hours = repository
+                    .findByTenantIdAndDayOfWeek(tenantId, it.dayOfWeek)
+                    .orElseGet(() -> {
+                        BusinessHours h = new BusinessHours();
+                        h.setTenantId(tenantId);
+                        h.setDayOfWeek(it.dayOfWeek);
+                        return h;
+                    });
+
+            hours.setClosed(it.closed != null && it.closed);
+
+            if (hours.getClosed()) {
+                hours.setOpenTime(null);
+                hours.setCloseTime(null);
+            } else {
+                hours.setOpenTime(it.openTime);
+                hours.setCloseTime(it.closeTime);
+            }
+
+            repository.save(hours);
+        }
     }
 
     public BusinessHours getForDateOrThrow(Long tenantId, LocalDate date) {

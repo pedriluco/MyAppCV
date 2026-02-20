@@ -9,6 +9,7 @@ import com.myapp.backend.tenant.entity.Tenant;
 import com.myapp.backend.tenant.entity.TenantStatus;
 import com.myapp.backend.tenant.repository.TenantRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -37,18 +38,26 @@ public class TenantService {
         return tenants.findByStatus(TenantStatus.PENDING);
     }
 
+    public List<Tenant> getMine(Long userId) {
+        return tenants.findAllForUser(userId);
+    }
+
+    @Transactional
     public Tenant create(Tenant tenant, Long userId) {
+
+        if (tenant.getName() == null || tenant.getName().trim().isEmpty()) {
+            throw new RuntimeException("Tenant name required");
+        }
+        tenant.setName(tenant.getName().trim());
 
         tenant.setStatus(TenantStatus.PENDING);
         Tenant saved = tenants.save(tenant);
 
-        Membership m = memberships.findByBusinessIdAndUserId(saved.getId(), userId)
-                .orElseGet(Membership::new);
-
+        Membership m = new Membership();
         m.setBusinessId(saved.getId());
         m.setUserId(userId);
         m.setRole(MembershipRole.OWNER);
-        m.setStatus(MembershipStatus.PENDING);
+        m.setStatus(MembershipStatus.INVITED);
 
         memberships.save(m);
 
